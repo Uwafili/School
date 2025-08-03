@@ -23,7 +23,7 @@
             </a>
         </div>
         <div class="mt-8 text-center">
-            <a href="{{ route('home') }}" class="text-yellow-600 hover:underline">← Back to Home</a>
+            <a href="{{route('home') }}" class="text-yellow-600 hover:underline">← Back to Home</a>
         </div>
     </div>
 </div>
