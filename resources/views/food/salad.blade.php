@@ -6,7 +6,6 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @forelse ($post as $posts)
             <div class="bg-white rounded-lg shadow p-5 flex flex-col items-center relative">
-                
                 @if($posts->image)
                     <img src="{{ asset('storage/' . $posts->image) }}" alt="{{ $posts->title }}" class="w-full h-40 object-cover rounded mb-3">
                 @else
@@ -19,9 +18,10 @@
                 <span class="text-yellow-600 font-semibold mb-1">₦{{ $posts->price }}</span>
                 <span class="text-sm text-gray-500 mb-2">{{ ucfirst($posts->category) }}</span>
                 <span class="text-xs text-gray-400">Posted: {{ $posts->created_at->diffForHumans() }}</span>
+                <a href="#" class="mt-3 inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded transition duration-200">
+                    Order Pizza
+                </a>
             </div>
-
-            
         @empty
             <p class="col-span-3 text-center text-gray-500">No posts found.</p>
         @endforelse
