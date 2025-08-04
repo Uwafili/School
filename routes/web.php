@@ -4,6 +4,8 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\UpdateController;
+use App\Http\Controllers\FoodController;
 use App\Http\Controllers\PostController;
 use Illuminate\Container\Attributes\Auth;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
@@ -22,7 +24,10 @@ Route::middleware('auth')->group(function(){
     Route::view('/storedashboard', 'enroll.storedashboard')->name('storedashboard');
 
 
-  
+  Route::get('/food/{type}', [App\Http\Controllers\FoodController::class, 'show']);
+  return view('food', ['food']);
+
+
 
     // // Correct: POST for storing posts
     // Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
