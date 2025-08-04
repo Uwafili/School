@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\PostController;
 use Illuminate\Container\Attributes\Auth;
+use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
 // Remove unused import
 
@@ -19,6 +20,9 @@ Route::middleware('auth')->group(function(){
     Route::view('/Shop', 'enroll.Shop')->name('Shop');
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::view('/storedashboard', 'enroll.storedashboard')->name('storedashboard');
+
+
+  
 
     // // Correct: POST for storing posts
     // Route::post('/posts', [PostController::class, 'store'])->name('posts.store');

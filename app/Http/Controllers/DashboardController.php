@@ -14,5 +14,4 @@ class DashboardController extends Controller
     return view('users.dashboard', compact('post'));
    }
 
-   
 }
