@@ -129,30 +129,30 @@
 
 <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
 <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
-<div x-data="{ openFood: false, selectedCategory: '' }" class="fixed bottom-6 right-6 z-50">
+<div x-data="{ openFood: false }" class="fixed bottom-6 right-6 z-50">
     <div class="relative">
         <button @click="openFood = !openFood"
             class="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full shadow-lg p-4 flex items-center justify-center transition duration-300 focus:outline-none">
             <svg class="w-7 h-7 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
-            <span class="font-semibold" x-text="selectedCategory ? selectedCategory : 'Categories'"></span>
+            <span class="font-semibold">Categories</span>
         </button>
         <div x-show="openFood" @click.away="openFood = false"
             class="mt-2 w-56 bg-white rounded-lg shadow-lg py-2 absolute right-0 bottom-16"
             x-transition>
-            <button @click="selectedCategory = '/food/pizza'; openFood = false" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
+            <a href="{{ route('food.pizza') }}" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
                 <img src="{{ asset('icons/pizza.png') }}" alt="Pizza" class="w-5 h-5 mr-2"> Pizza
-            </button>
-            <button @click="selectedCategory = 'Burger'; openFood = false" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
+            </a>
+            <a href="{{ route('food.burger') }}" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
                 <img src="{{ asset('icons/burger.png') }}" alt="Burger" class="w-5 h-5 mr-2"> Burger
-            </button>
-            <button @click="selectedCategory = 'Salad'; openFood = false" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
+            </a>
+            <a href="{{ route('food.salad') }}" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
                 <img src="{{ asset('icons/salad.png') }}" alt="Salad" class="w-5 h-5 mr-2"> Salad
-            </button>
-            <button @click="selectedCategory = 'Drinks'; openFood = false" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
+            </a>
+            <a href="{{ route('food.drinks') }}" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
                 <img src="{{ asset('icons/drink.png') }}" alt="Drinks" class="w-5 h-5 mr-2"> Drinks
-            </button>
+            </a>
         </div>
     </div>
 </div>

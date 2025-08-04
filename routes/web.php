@@ -24,8 +24,11 @@ Route::middleware('auth')->group(function(){
     Route::view('/storedashboard', 'enroll.storedashboard')->name('storedashboard');
 
 
-  Route::get('/food/{type}', [App\Http\Controllers\FoodController::class, 'show']);
-  return view('food', ['food']);
+Route::get('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
+Route::get('/salad', [FoodController::class, 'salad'])->name('food.salad');
+Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger');
+Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
+
 
 
 

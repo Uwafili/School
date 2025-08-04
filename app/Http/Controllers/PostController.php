@@ -41,7 +41,7 @@ class PostController extends Controller
             'title'=>['required','max:255',],
             'description'=>['required','max:255'],
             'price'=>['required','numeric','min:0'],
-            'category'=>['required','in:burger,salad,drinks,rice,chicken,dessert,snacks'],
+             'category'=>['required','in:pizza,burger,salad,drinks'],
             'image'=>['file', 'max:3000','mimes:jpeg,jpg,png,avif','nullable'],
         ]);
         $path=null;
