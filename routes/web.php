@@ -26,7 +26,7 @@ Route::middleware('auth')->group(function(){
 
 Route::get('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
 Route::get('/salad', [FoodController::class, 'salad'])->name('food.salad');
-Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger');
+Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger'); 
 Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
 
