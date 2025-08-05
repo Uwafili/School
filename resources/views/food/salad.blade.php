@@ -18,6 +18,20 @@
                 <span class="text-yellow-600 font-semibold mb-1">₦{{ $posts->price }}</span>
                 <span class="text-sm text-gray-500 mb-2">{{ ucfirst($posts->category) }}</span>
                 <span class="text-xs text-gray-400">Posted: {{ $posts->created_at->diffForHumans() }}</span>
+                <div class="flex gap-3 mt-3">
+                    <!-- Comment Icon -->
+                    <a href="#" title="Comment">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500 hover:text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 21l1.8-4A8.96 8.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                    </a>
+                    <!-- View Details Icon -->
+                    <a href="#" title="View Details">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500 hover:text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c0 5-4.03 9-9 9s-9-4-9-9 4.03-9 9-9 9 4 9 9z" />
+                        </svg>
+                    </a>
+                </div>
                 <a href="#" class="mt-3 inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded transition duration-200">
                     Order Pizza
                 </a>
