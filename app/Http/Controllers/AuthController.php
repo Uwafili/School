@@ -49,7 +49,7 @@ class AuthController extends Controller
           $userCount = User::count();
           $post=Post::latest()->get();
           $users = User::latest()->get();
-          return view('admin.dashboard', compact('userCount', 'post', 'users'));
+          return view('admin.dashboard', compact('userCount', 'posts', 'users'));
           
          
       }

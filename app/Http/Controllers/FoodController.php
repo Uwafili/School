@@ -16,7 +16,7 @@ public function pizza()
 {
     $post=Post::where('category', 'pizza')->latest()->get(); 
     return view('Food.Pizza', compact('post'));
-}
+} 
 
 public function burger()
 {
@@ -35,4 +35,15 @@ public function drinks()
     $post=Post::where('category', 'drinks')->latest()->get(); 
     return view('Food.drinks', compact('post'));
 }
+
+
+public function view($id)
+{
+    $post = Post::findOrFail($id);
+    return view('food.view', compact('post'));
+}
+
+
+
+
 }

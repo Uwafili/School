@@ -29,8 +29,9 @@ Route::get('/salad', [FoodController::class, 'salad'])->name('food.salad');
 Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger'); 
 Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
-
-
+Route::get('/food/view', [FoodController::class, 'view'])->name('food.view');
+// Route::get('/view/{id}', [FoodController::class, 'view'])->name('food.view');
+// Route::get('/view/{post}', [FoodController::class, 'view'])->name('food.view');
 
     // // Correct: POST for storing posts
     // Route::post('/posts', [PostController::class, 'store'])->name('posts.store');

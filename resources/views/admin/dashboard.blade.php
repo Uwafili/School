@@ -35,6 +35,13 @@
     <!-- filepath: c:\Users\Bishop\School\resources\views\admin\dashboard.blade.php -->
 <div class="bg-white rounded-lg shadow p-8 mt-10">
     <h2 class="text-2xl font-semibold text-gray-800 mb-4">Create New Post Item</h2>
+    
+    @if (session('success'))
+    <div class="mb-4">
+        <x-flashMsg msg="{{session('success')}}" />
+    </div>
+@endif
+    
    <!-- filepath: c:\Users\Bishop\School\resources\views\admin\dashboard.blade.php -->
 <form action="{{ route('posts.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
@@ -137,4 +144,9 @@
         @endforelse
     </div>
 </div>
+
+<div>
+        {{$post->links()}}
+    </div>
+
 @endsection

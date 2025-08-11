@@ -57,7 +57,7 @@ class PostController extends Controller
            'image'=>$path,
 
         ]);
-        return back()->with('succes','post created successfully.', 'post');
+        return back()->with('success','post created successfully.', 'post');
 
     }
 
