@@ -38,12 +38,12 @@
             </div>
         @empty
             <p class="col-span-3 text-center text-gray-500">No posts found.</p>
+            {{$post->links()}}
         @endforelse
     </div>
     
 </div>
      <div>
-        {{$post->links()}}
     </div>
 
 @endsection

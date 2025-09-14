@@ -47,7 +47,7 @@ class AuthController extends Controller
    public function adminDashboard(){
       if(Auth::check()&& Auth::user()->usertype=='admin'){
           $userCount = User::count();
-          $post=Post::latest()->get();
+          $posts=Post::latest()->get();
           $users = User::latest()->get();
           return view('admin.dashboard', compact('userCount', 'posts', 'users'));
           

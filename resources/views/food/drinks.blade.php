@@ -34,13 +34,13 @@
                 </div>
                 <a href="{{ route('food.view') }}">View Details</a>
             </div>
+            {{$post->links()}}
         @empty
             <p class="col-span-3 text-center text-gray-500">No posts found.</p>
         @endforelse
     </div>
 </div>
  <div>
-        {{$post->links()}}
     </div>
 
 @endsection

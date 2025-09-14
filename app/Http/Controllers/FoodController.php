@@ -14,33 +14,33 @@ class FoodController extends Controller
 
 public function pizza()
 {
-    $post=Post::where('category', 'pizza')->latest()->get(); 
-    return view('Food.Pizza', compact('post'));
+    $posts=Post::where('category', 'pizza')->latest()->get(); 
+    return view('Food.Pizza', compact('posts'));
 } 
 
 public function burger()
 {
-    $post=Post::where('category', 'burger')->latest()->get(); 
-    return view('Food.Burger', compact('post'));
+    $posts=Post::where('category', 'burger')->latest()->get(); 
+    return view('Food.Burger', compact('posts'));
 }
    
 public function salad()
 {   
-    $post=Post::where('category', 'salad')->latest()->get(); 
-    return view('Food.salad', compact('post'));
+    $posts=Post::where('category', 'salad')->latest()->get(); 
+    return view('Food.salad', compact('posts'));
 }
 
 public function drinks()
 {
-    $post=Post::where('category', 'drinks')->latest()->get(); 
-    return view('Food.drinks', compact('post'));
+    $posts=Post::where('category', 'drinks')->latest()->get(); 
+    return view('Food.drinks', compact('posts'));
 }
 
 
 public function view($id)
 {
-    $post = Post::findOrFail($id);
-    return view('food.view', compact('post'));
+    $posts = Post::findOrFail($id);
+    return view('food.view', compact('posts'));
 }
 
 
