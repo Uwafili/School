@@ -1,12 +1,14 @@
 @extends('layouts.navbar')
 @section('content')
-<div class="grid gap-6 grid-cols-1 sm:grid-cols-8 lg:grid-cols-3">
-   
+
+<div class="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
     @foreach ($posts as $post)
-      <x-postscard :post="$post"/>
+        <x-postscard :post="$post"/>
     @endforeach
-  </div>
+</div>
+
 <div class="mt-6">
     {{ $posts->links() }}
-  </div>
+</div>
+
 @endsection

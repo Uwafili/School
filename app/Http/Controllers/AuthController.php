@@ -81,13 +81,24 @@ class AuthController extends Controller
    }
 
 
-   public function destroy($id)
-{
-    $user = \App\Models\User::findOrFail($id);
-    $user->delete();
+//    public function destroy(Post $post)
+// {
+//     $user = \App\Models\User::findOrFail($id);
+//     $user->delete();
 
-    return redirect()->route('manage')->with('success', 'User deleted successfully.');
-}
+//     return redirect()->route('manage')->with('success', 'User deleted successfully.');
+// }
 
+public function destroy(Post $post){
+      //   Gate::authorize('modify', $post);
+ 
+      //   if($post->image){
+      //       Storage::disk('public')->delete($post->image);
+      //   }
+        $post->delete();
+
+        return back()->with('delete', 'Your post was deleted');
+    }
+   
    
 }
