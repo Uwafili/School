@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+
 use App\Models\Post;
 
 
@@ -13,8 +14,8 @@ class DashboardController extends Controller
 {
    public function index(){
     
-    $post=Post::latest()->get();
-    return view('users.dashboard', compact('post'));
+    $posts=Post::latest()->get();
+    return view('users.dashboard', ['posts'=>$posts]);
    }
 
 }

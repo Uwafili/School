@@ -56,4 +56,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::view('/manage','admin.manage')->name('manage');
     Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage');
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroy'])->name('user.destroy');
+
+
+Route::delete('/post/{post}', [App\Http\Controllers\PostController::class, 'destroy'])->name('post.destroy');
 });

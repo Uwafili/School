@@ -107,46 +107,23 @@
 </div>
 <!-- Add this after your post creation form in admin/dashboard.blade.php -->
 
-<div class="container mt-10">
-    <h1 class="text-center mb-4" style="color: gray;">Latest Posts</h1>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @forelse ($posts as $post)
-            <div class="bg-white rounded-lg shadow p-5 flex flex-col items-center relative">
-                
-                @if($post->image)
-                    <img src="{{ asset('storage/' . $post->image) }}" alt="{{ $posts->title }}" class="w-full h-40 object-cover rounded mb-3">
-                @else
-                    <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded mb-3 text-gray-400">
-                        No Image
-                    </div>
-                @endif
-                <h2 class="text-xl font-bold mb-2">{{ $post->title }}</h2>
-                <p class="text-gray-700 mb-2">{{ $post->description }}</p>
-                <span class="text-yellow-600 font-semibold mb-1">₦{{ $post->price }}</span>
-                <span class="text-sm text-gray-500 mb-2">{{ ucfirst($post->category) }}</span>
-                <span class="text-xs text-gray-400">Posted: {{ $post->created_at->diffForHumans() }}</span>
-           
-           <form action="{{ route('post.destroy', $post->id) }}" method="POST" class="absolute top-2 right-2" onsubmit="return confirm('Are you sure you want to delete this post?');">
-                    @csrf
-                    @method('DELETE')
-                  <button type="submit" class="p-2 rounded-full hover:bg-red-100 transition" title="Delete">
-        <!-- Heroicons Trash SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 3h4a1 1 0 011 1v2H9V4a1 1 0 011-1z" />
-        </svg>
-    </button>
-                </form>
-            </div>
+<div class="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+    @foreach ($posts as $post)
+        <div class="bg-white rounded-lg shadow p-3">
+            <x-postscard :post="$post"/>
 
-            
-            {{-- {{$post->link()}} --}}
-        @empty
-            <p class="col-span-3 text-center text-gray-500">No posts found.</p>
-        @endforelse
-    </div>
+            <form action="{{ route('posts.destroy', $post->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this post?');" class="mt-3">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="w-300 bg-red-600 hover:bg-red-700 text-white py-2 rounded">
+                    Delete
+                </button>
+            </form>
+        </div>
+    @endforeach
 </div>
 
-<div>
-    </div>
-
 @endsection
+
+
+
