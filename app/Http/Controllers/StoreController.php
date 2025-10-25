@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Store;
 use App\Http\Requests\UpdateStoreRequest;
 use Illuminate\Http\Request as HttpRequest;
-use Illuminate\Support\Facades\Storage as Stroage;
+use Illuminate\Support\Facades\Storage as Storage;
 use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Models\Store;
+use Illuminate\Support\Facades\Auth;
+
 
 
 
@@ -45,7 +47,7 @@ class StoreController extends Controller
         ]);
         $path=null;
         if($request->hasFile('image')){
-            $path=Stroage::disk('public')->put('post_image', $request->file('image'));
+            $path=Storage::disk('public')->put('post_image', $request->file('image'));
         }
         $store=Store::create([
             'stores'=> $request->stores,
@@ -53,21 +55,28 @@ class StoreController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'address'=> $request->address,
-            'image'=> $path
+            'image'=> $path,
+            "user_id"=>Auth::id()
+
         ]);
+
+
         if ($store) {
             return redirect()->route('home')->with('success', 'Store created successfully.');
         } else {
             return redirect()->back()->with('failed', 'Failed to create store.');
         }
+         
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Store $store)
+    public function Storedashboard()
     {
-        //
+        $id=Auth::id();
+        $stores=Store::where("user_id",'=',$id)->get();
+        return view('enroll.storedashboard',['stores'=>$stores]);
     }
 
     /**

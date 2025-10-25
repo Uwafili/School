@@ -1,14 +1,12 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\RiderController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StoreController;
-use App\Http\Controllers\UpdateController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\PostController;
-use Illuminate\Container\Attributes\Auth;
-use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 
 // Remove unused import
 
@@ -20,8 +18,13 @@ Route::middleware('auth')->group(function(){
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::view('/Shop', 'enroll.Shop')->name('Shop');
+
     Route::post('/store', [StoreController::class, 'store'])->name('store');
-    Route::view('/storedashboard', 'enroll.storedashboard')->name('storedashboard');
+    Route::get('/storedashboard', [StoreController::class,'Storedashboard']);
+
+Route::view('/rider', 'enroll.rider')->name('rider.create');
+Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+
 
 
 Route::get('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
@@ -30,13 +33,7 @@ Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger');
 Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
 Route::get('/food/view', [FoodController::class, 'view'])->name('food.view');
-// Route::get('/view/{id}', [FoodController::class, 'view'])->name('food.view');
-// Route::get('/view/{post}', [FoodController::class, 'view'])->name('food.view');
 
-    // // Correct: POST for storing posts
-    // Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
-    // // Optional: GET for viewing posts
-    // Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
 });
 
 Route::view('/', 'posts.index')->name('home');

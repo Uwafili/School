@@ -24,24 +24,30 @@
         <!-- Store Info -->
         <div class="bg-white rounded-lg shadow p-8 mb-10">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">Store Information</h2>
+        
+               @foreach ($stores as $store) 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+              
+                    <div>
                     <p class="mb-2"><span class="font-semibold text-gray-700">Store Name:</span> {{ $store->stores ?? 'Your Store' }}</p>
                     <p class="mb-2"><span class="font-semibold text-gray-700">Owner:</span> {{ $store->owner ?? 'Owner Name' }}</p>
                     <p class="mb-2"><span class="font-semibold text-gray-700">Email:</span> {{ $store->email ?? 'store@email.com' }}</p>
                     <p class="mb-2"><span class="font-semibold text-gray-700">Phone:</span> {{ $store->phone ?? '000-000-0000' }}</p>
                     <p class="mb-2"><span class="font-semibold text-gray-700">Address:</span> {{ $store->address ?? 'Store Address' }}</p>
                 </div>
+                
+              
                 <div class="flex items-center justify-center">
-                    @if(!empty($store->image))
+                   {{--  @if(!empty($store->image))
                         <img src="{{storage('post_image/' . $store->image) }}" alt="Store Logo" class="w-32 h-32 object-cover rounded-full shadow">
                     @else
                         <div class="w-32 h-32 bg-yellow-100 flex items-center justify-center rounded-full text-yellow-600 text-2xl font-bold">No Logo</div>
-                    @endif
+                    @endif --}}
                 </div>
             </div>
+            @endforeach
         </div>
-
+            
         <!-- Orders Table Example -->
         <div class="bg-white rounded-lg shadow p-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">Recent Orders</h2>

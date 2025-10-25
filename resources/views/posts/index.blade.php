@@ -98,7 +98,7 @@
                 <p class="text-gray-600 text-center mb-4">
                     Register as a delivery man and earn money by delivering delicious meals to customers. Flexible hours and great earnings!
                 </p>
-                <a href="{{ route('Shop') }}" class="bg-yellow-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition">Register as Delivery Man</a>
+                <a href="{{ route('rider.store') }}" class="bg-yellow-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition">Register as Delivery Man</a>
             </div>
             <!-- Seller/Restaurant Column -->
             <div class="bg-white rounded-lg shadow p-8 flex flex-col items-center">

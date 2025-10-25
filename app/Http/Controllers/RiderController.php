@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Rider;
+use App\Models\Post;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
+
+
+
+class RiderController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        //
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+     public function store(Request $request)
+    {
+        $field = $request->validate([
+            'name' => ['required'],
+            'email' => ['required','email','max:225'],
+            'license' => ['required']
+            // ...
+        ]);
+
+        // ...save logic...
+    
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Rider $rider)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Rider $rider)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Rider $rider)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Rider $rider)
+    {
+        //
+    }
+}
