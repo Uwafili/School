@@ -71,10 +71,10 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Vehicle Number</label>
-                                <input name="vehicle" value="{{ old('vehicle') }}" type="text"
+                                <input name="vehicle_number" value="{{ old('vehicle_number') }}" type="text"
                                     class="mt-1 block w-full rounded-lg border border-gray-200 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
                                     placeholder="ABC-1234">
-                                @error('vehicle') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                                @error('vehicle_number') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
 

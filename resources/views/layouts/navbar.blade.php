@@ -17,6 +17,8 @@
                
                     
                 <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Home</a>
+                <a href="" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Cart</a>
+
                 @endauth
                 @guest
                     
@@ -272,8 +274,8 @@
         <!-- Contact & Social -->
         <div>
             <h4 class="text-lg font-semibold text-yellow-400 mb-3">Contact Us</h4>
-            <p class="text-gray-400 mb-2">Email: <a href="mailto:support@foodstore.com" class="hover:text-yellow-400">support@foodstore.com</a></p>
-            <p class="text-gray-400 mb-4">Phone: <a href="tel:+1234567890" class="hover:text-yellow-400">+1 234 567 890</a></p>
+            <p class="text-gray-400 mb-2">Email: <a href="uwafilinorbet50@gmail.com" class="hover:text-yellow-400">uwafilinorbet50@gmail.com</a></p>
+            <p class="text-gray-400 mb-4">Phone: <a href="tel:+2347010282697" class="hover:text-yellow-400">+234 7010282697</a></p>
             <div class="flex space-x-4">
                 <a href="#" class="hover:text-yellow-400" title="Facebook">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('riders', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('email');
+            $table->string('name');
+            $table->string('phone');
+            $table->string('license');
+            $table->string('vehicle_number');
+            $table->string('vehicle');
+            $table->string('image')->nullable();
             $table->timestamps();
+
         });
     }
 

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Rider;
 use App\Models\Post;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use App\Models\Rider;
+
 
 
 
@@ -33,15 +34,31 @@ class RiderController extends Controller
      */
      public function store(Request $request)
     {
-        $field = $request->validate([
-            'name' => ['required'],
+         $request->validate([
+            'name' => ['required','max:255'],
             'email' => ['required','email','max:225'],
-            'license' => ['required']
-            // ...
+            'phone'=>['required','max:15','regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'license' => ['required','max:255',],
+            'vehicle_number'=>['required','max:15','regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'vehicle'=>['required','max:255'],
+            'image'=>['file','nullable','mimes:jpg,png,jpeg,avif','max:3000']
         ]);
-
-        // ...save logic...
-    
+        $path=null;
+        if($request->hasFile('image')){
+            $path=Storage::disk('public')->put('post_image', $request->file('image'));
+        }
+        $riders=Rider::create([
+            'name'=>$request->name,
+            'email'=>$request->email,
+            'phone'=>$request->phone,
+            'license'=>$request->license,
+            'vehicle_number'=>$request->vehicle_number,
+            'vehicle'=>$request->vehicle,
+            'image'=>$path, 
+            "user_id"=>Auth::id()
+            
+        ]);
+        return back()->with('success','Riders information has been submitted',['riders'=>$riders]);
     }
 
     /**
