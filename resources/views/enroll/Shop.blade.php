@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="min-h-screen flex items-center justify-center relative py-12 px-4">
-    <!-- Blurred Background Image -->
+    <!-- Blurred Background Image --> 
     <div class="absolute inset-0 z-0">
         <img src="{{('asset/one.jpg') }}" alt="Background" class="w-full h-full object-cover blur-sm brightness-75">
     </div>

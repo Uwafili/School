@@ -3,8 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\Request;
 
 return new class extends Migration
 {
@@ -13,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stores', function (Blueprint $table) {
+        Schema::create('riders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('stores');
-            $table->string('owner');
             $table->string('email');
+            $table->string('name');
             $table->string('phone');
-            $table->string('address');
+            $table->string('license');
+            $table->string('vehicle_number');
+            $table->string('vehicle');
             $table->string('image')->nullable();
             $table->timestamps();
+
         });
     }
 
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('stores');
+        Schema::dropIfExists('riders');
     }
 };

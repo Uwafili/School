@@ -17,6 +17,8 @@
                
                     
                 <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Home</a>
+                <a href="" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Cart</a>
+
                 @endauth
                 @guest
                     
@@ -156,6 +158,94 @@
         </div>
     </div>
 </div>
+<!-- Floating message icons (yellow) -->
+{{-- <div class="fixed bottom-6 left-6 z-50 space-y-3">
+    <a href="https://wa.me/1234567890" target="_blank" title="WhatsApp" class="block">
+        <div class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1">
+            <!-- WhatsApp icon -->
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20.5 3.5A11 11 0 1 0 12.1 21l-1.6.5.5-1.6A11 11 0 0 0 20.5 3.5z" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M17.2 14.1c-.3-.1-1.8-.9-2-.9s-.4 0-.6.1c-.2.1-.4.2-.6.4-.2.2-.5.4-1.1.2-.6-.2-1.8-.7-3.4-2.1-1.3-1.2-2-2.6-2.3-3.2-.2-.4 0-.6.1-.8.1-.2.2-.4.3-.6.1-.2.1-.4 0-.6-.1-.2-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4-.2 0-.5 0-.8 0s-.6.1-.9.4c-.3.3-1.1 1.1-1.1 2.6 0 1.5 1.1 3 1.2 3.2.1.2 2 3.3 4.9 4.6 2.9 1.3 2.9.9 3.4.9.5 0 1.8-.8 2-.9.2-.1 1.3-.7 1.5-1.3.2-.6.2-1.1.1-1.3-.1-.2-.3-.3-.6-.4z" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </div>
+    </a>
+
+    <a href="" title="Live Chat" class="block">
+        <div class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1">
+            <!-- Chat icon -->
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </div>
+    </a>
+
+    <a href="mailto:support@foodstore.com" title="Email" class="block">
+        <div class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1">
+            <!-- Email icon -->
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 8.5v7A2.5 2.5 0 0 0 5.5 18h13A2.5 2.5 0 0 0 21 15.5v-7" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M21 8.5l-9 6-9-6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </div>
+    </a>
+</div> --}}
+
+<!-- Small label on hover (optional) -->
+{{-- <div class="fixed bottom-6 left-6 z-50">
+    <a href="sms:+1234567890" title="Text Message" class="block" >
+        <div class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1">
+            <!-- Text / chat icon -->
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </div>
+    </a>
+</div> --}}
+
+
+<div x-data="{ open: false, message: '', sending: false, send() { if (!this.message.trim()) return; this.sending = true; /* use sms: or perform ajax here */ window.location.href = 'sms:+1234567890?body=' + encodeURIComponent(this.message); this.message = ''; this.open = false; this.sending = false } }"
+     class="fixed bottom-6 left-6 z-50">
+    <div class="relative">
+        <button @click="open = !open"
+                :aria-expanded="open"
+                class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1 focus:outline-none"
+                title="Message">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+
+        <!-- input panel -->
+        <div x-show="open" x-cloak x-transition:enter="transition transform ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition transform ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 translate-y-2"
+             @click.away="open = false"
+             class="mt-3 w-80 bg-white rounded-xl shadow-lg p-3 text-gray-800">
+            <label class="block text-xs text-gray-500 mb-2">Send a quick message</label>
+
+            <textarea x-model="message" rows="3" placeholder="Type your message..."
+                      class="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"></textarea>
+
+            <div class="mt-3 flex items-center justify-between">
+                <button @click="send()" type="button"
+                        :class="message.trim() ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+                        class="px-3 py-2 rounded-md text-sm font-medium shadow-sm focus:outline-none"
+                        :disabled="!message.trim() || sending">
+                    <span x-text="sending ? 'Sending…' : 'Send'"></span>
+                </button>
+
+                <button @click="open = false; message = ''" type="button" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+            </div>
+            <p class="mt-2 text-xs text-gray-400">This will open your SMS app. Replace with ajax if you want in-site chat.</p>
+        </div>
+    </div>
+</div>
+
+
+
 @yield('content')
 
 <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
@@ -184,8 +274,8 @@
         <!-- Contact & Social -->
         <div>
             <h4 class="text-lg font-semibold text-yellow-400 mb-3">Contact Us</h4>
-            <p class="text-gray-400 mb-2">Email: <a href="mailto:support@foodstore.com" class="hover:text-yellow-400">support@foodstore.com</a></p>
-            <p class="text-gray-400 mb-4">Phone: <a href="tel:+1234567890" class="hover:text-yellow-400">+1 234 567 890</a></p>
+            <p class="text-gray-400 mb-2">Email: <a href="uwafilinorbet50@gmail.com" class="hover:text-yellow-400">uwafilinorbet50@gmail.com</a></p>
+            <p class="text-gray-400 mb-4">Phone: <a href="tel:+2347010282697" class="hover:text-yellow-400">+234 7010282697</a></p>
             <div class="flex space-x-4">
                 <a href="#" class="hover:text-yellow-400" title="Facebook">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -210,4 +300,5 @@
     </div>
 </footer>
 
-<script src="//unpkg.com/alpinejs" defer></script>
+<script src="//unpkg.com/alpinejs" defer>
+ .floating-label { display: none; }</script>
