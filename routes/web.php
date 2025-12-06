@@ -7,6 +7,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\CartController;
+
 
 // Remove unused import
 
@@ -34,6 +36,9 @@ Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
 Route::get('/food/view', [FoodController::class, 'view'])->name('food.view');
 
+
+Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('add.cart');
+Route::view('/cart','food.cart')->name('cart');
 });
 
 Route::view('/', 'posts.index')->name('home');
@@ -55,5 +60,15 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroy'])->name('user.destroy');
 
 
-Route::delete('/post/{post}', [App\Http\Controllers\PostController::class, 'destroy'])->name('post.destroy');
-});
+    Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');
+    Route::get('/riders',[AuthController::class,'showrider'])->name('riders');
+
+     Route::get('/viewdetail/{id}',[AuthController::class,'viewdetail'])->name('viewdetail');
+
+     Route::post('/Approve/Riders/{id}',[AuthController::class,'Approve'])->name('Approve');
+
+     Route::post('/Reject/Riders/{id}',[AuthController::class,'Reject'])->name('Reject');
+
+
+
+    });

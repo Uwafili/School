@@ -56,9 +56,12 @@ class RiderController extends Controller
             'vehicle'=>$request->vehicle,
             'image'=>$path, 
             "user_id"=>Auth::id()
+
+    
             
         ]);
-        return back()->with('success','Riders information has been submitted',['riders'=>$riders]);
+    
+        return back()->with('success','Your details have been submitted. Admin will approve soon',['riders'=>$riders]);
     }
 
     /**
@@ -66,7 +69,7 @@ class RiderController extends Controller
      */
     public function show(Rider $rider)
     {
-        //
+        
     }
 
     /**

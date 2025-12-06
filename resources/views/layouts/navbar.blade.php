@@ -17,7 +17,7 @@
                
                     
                 <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Home</a>
-                <a href="" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Cart</a>
+                <a href="{{ route('cart') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Cart</a>
 
                 @endauth
                 @guest
