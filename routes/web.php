@@ -23,19 +23,18 @@ Route::middleware('auth')->group(function(){
     Route::view('/Shop', 'enroll.Shop')->name('Shop');
 
     Route::post('/store', [StoreController::class, 'store'])->name('store');
-    Route::get('/storedashboard', [StoreController::class,'Storedashboard']);
-
-Route::view('/rider', 'enroll.rider')->name('rider.create');
-Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+    Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
 
 
 
-Route::get('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
-Route::get('/salad', [FoodController::class, 'salad'])->name('food.salad');
-Route::get('/burger', [FoodController::class, 'burger'])->name('food.burger'); 
-Route::get('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
-Route::get('/food/view', [FoodController::class, 'view'])->name('food.view');
+
+Route::any('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
+Route::any('/salad', [FoodController::class, 'salad'])->name('food.salad');
+Route::any('/burger', [FoodController::class, 'burger'])->name('food.burger'); 
+Route::any('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
+
+Route::any('/food/view', [FoodController::class, 'view'])->name('food.view');
 
 
 Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('add.cart');
@@ -43,7 +42,7 @@ Route::view('/cart','food.cart')->name('cart');
 
 
 
-// Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('cart.add');
+
 Route::post('/cart/increase/{id}', [CartController::class, 'increase'])->name('cart.increase');
 Route::post('/cart/decrease/{id}', [CartController::class, 'decrease'])->name('cart.decrease');
 Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
@@ -78,5 +77,11 @@ Route::middleware(['auth', 'admin'])->group(function(){
      Route::post('/Reject/Riders/{id}',[AuthController::class,'Reject'])->name('Reject');
 
 
+     
 
-    });
+    //  riders route
+    Route::view('/rider', 'enroll.rider')->name('rider.create');
+    Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+
+
+});

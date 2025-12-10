@@ -48,7 +48,11 @@
             </button>
         </form>
 
-
+ @if (session('success'))
+    <div class="mb-6">
+        <x-flashMsg msg="{{session('success')}}" />
+    </div>
+@endif
     </div>
     <!-- FLEX BUTTONS END -->
 

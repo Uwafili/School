@@ -20,7 +20,7 @@
                 </div>
 
                 <div class="flex gap-2">
-
+ 
                     <form action="{{ route('cart.increase', $id) }}" method="POST">
                         @csrf
                         <button class="px-3 py-1 bg-green-600 text-white rounded">+</button>

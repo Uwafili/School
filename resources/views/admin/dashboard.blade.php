@@ -15,7 +15,7 @@
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
                 <span class="text-2xl font-bold text-yellow-600">Stores</span>
-                <span class="text-gray-700 mt-2">Manage stores</span>
+                <span class="text-gray-700 mt-2"><a href="{{ route('storedashboard') }}">Manage stores</a></span>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
                 <span class="text-2xl font-bold text-yellow-600">Orders</span>
