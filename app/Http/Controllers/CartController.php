@@ -22,7 +22,51 @@ class CartController extends Controller
                 ];
          }  
          session()->put('cart', $cart);                    
-     return back()->with('success', 'Item added to cart!');
+         return back()->with('success', 'Item added to cart!');
         }
+
+         public function increase($id)
+    {
+        $cart = session()->get('cart');
+
+        $cart[$id]['quantity']++;
+
+        session()->put('cart', $cart);
+
+        return back();
+    }
+
+    // Decrease quantity
+    public function decrease($id)
+    {
+        $cart = session()->get('cart');
+
+        if($cart[$id]['quantity'] > 1){
+            $cart[$id]['quantity']--;
+        }
+
+        session()->put('cart', $cart);
+
+        return back();
+    }
+
+    // Remove item
+    public function remove($id)
+    {
+        $cart = session()->get('cart');
+
+        unset($cart[$id]);
+
+        session()->put('cart', $cart);
+
+        return back();
+    }
+
+    // View cart page
+    public function viewCart()
+    {
+        return view('cart.index');
+    }
+
 
 }

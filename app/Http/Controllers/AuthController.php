@@ -37,7 +37,7 @@ class AuthController extends Controller
             'password'=>['required']
          ]);
          if(Auth::attempt($field,$request->remember)){
-                return redirect()->intended('home');
+                return redirect()->intended('dashboard');
          }
          else{
             return back()->withErrors([

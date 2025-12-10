@@ -10,6 +10,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\CartController;
 
 
+
 // Remove unused import
 
 Route::middleware('auth')->group(function(){
@@ -39,6 +40,13 @@ Route::get('/food/view', [FoodController::class, 'view'])->name('food.view');
 
 Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('add.cart');
 Route::view('/cart','food.cart')->name('cart');
+
+
+
+// Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('cart.add');
+Route::post('/cart/increase/{id}', [CartController::class, 'increase'])->name('cart.increase');
+Route::post('/cart/decrease/{id}', [CartController::class, 'decrease'])->name('cart.decrease');
+Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
 });
 
 Route::view('/', 'posts.index')->name('home');
