@@ -8,6 +8,8 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\MessageController;
+
 
 
 
@@ -82,6 +84,24 @@ Route::middleware(['auth', 'admin'])->group(function(){
     //  riders route
     Route::view('/rider', 'enroll.rider')->name('rider.create');
     Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Send message (admin or user)
+Route::post('/send-message', [MessageController::class, 'send'])->middleware('auth');
+
+// View chat (admin or user)
+Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth');
 
 
 });

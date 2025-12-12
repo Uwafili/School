@@ -1,6 +1,11 @@
 @props(['post', 'full'=>false])
 
 <div class="bg-white rounded-lg shadow p-5 flex flex-col items-center w-90">
+    {{-- @if (session('success'))
+    <div class="mb-6">
+        <x-flashMsg msg="{{session('success')}}" />
+    </div>
+@endif --}}
 
     <img src="{{ asset('storage/' . $post->image) }}" 
          alt="{{ $post->title }}" 
@@ -48,11 +53,7 @@
             </button>
         </form>
 
- @if (session('success'))
-    <div class="mb-6">
-        <x-flashMsg msg="{{session('success')}}" />
-    </div>
-@endif
+ 
     </div>
     <!-- FLEX BUTTONS END -->
 

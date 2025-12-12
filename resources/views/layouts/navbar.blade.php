@@ -203,7 +203,7 @@
 </div> --}}
 
 
-<div x-data="{ open: false, message: '', sending: false, send() { if (!this.message.trim()) return; this.sending = true; /* use sms: or perform ajax here */ window.location.href = 'sms:+1234567890?body=' + encodeURIComponent(this.message); this.message = ''; this.open = false; this.sending = false } }"
+{{-- <div x-data="{ open: false, message: '', sending: false, send() { if (!this.message.trim()) return; this.sending = true; /* use sms: or perform ajax here */ window.location.href = 'sms:+1234567890?body=' + encodeURIComponent(this.message); this.message = ''; this.open = false; this.sending = false } }"
      class="fixed bottom-6 left-6 z-50">
     <div class="relative">
         <button @click="open = !open"
@@ -242,8 +242,123 @@
             <p class="mt-2 text-xs text-gray-400">This will open your SMS app. Replace with ajax if you want in-site chat.</p>
         </div>
     </div>
+</div> --}}
+
+
+
+
+
+
+
+
+<div 
+    x-data="chatWidget()" 
+    class="fixed bottom-6 left-6 z-50"
+>
+    <div class="relative">
+
+        <!-- FAB Button -->
+        <button 
+            @click="toggle()" 
+            :aria-expanded="open"
+            class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1 focus:outline-none"
+            title="Message"
+        >
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+
+        <!-- Chat Input Box -->
+        <div 
+            x-show="open" 
+            x-cloak
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-2"
+            @click.away="close()"
+            class="mt-3 w-80 bg-white rounded-xl shadow-lg p-3 text-gray-800"
+        >
+            <label class="block text-xs text-gray-500 mb-2">
+                Send a quick message
+            </label>
+
+            <textarea 
+                x-model="message"
+                rows="3" 
+                placeholder="Type your message…" 
+                class="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            ></textarea>
+
+            <div class="mt-3 flex items-center justify-between">
+                <button 
+                    @click="send()" 
+                    type="button"
+                    class="px-3 py-2 rounded-md text-sm font-medium shadow-sm focus:outline-none"
+                    :class="message.trim() ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+                    :disabled="!message.trim() || sending"
+                >
+                    <span x-show="!sending">Send</span>
+                    <span x-show="sending">Sending…</span>
+                </button>
+
+                <button 
+                    @click="close()" 
+                    type="button" 
+                    class="text-sm text-gray-500 hover:text-gray-700"
+                >
+                    Close
+                </button>
+            </div>
+
+            <p class="mt-2 text-xs text-gray-400">
+                Currently sends via SMS. Replace with AJAX for real chat.
+            </p>
+        </div>
+    </div>
 </div>
 
+<script>
+function chatWidget() {
+    return {
+        open: false,
+        message: "",
+        sending: false,
+
+        toggle() {
+            this.open = !this.open;
+        },
+
+        close() {
+            this.open = false;
+            this.message = "";
+        },
+
+        send() {
+            if (!this.message.trim()) return;
+
+            this.sending = true;
+
+            /* 
+             |-------------------------------------------------------
+             | CURRENT METHOD: Opens SMS App
+             |-------------------------------------------------------
+             */
+            window.location.href = 'sms:+1234567890?body=' + encodeURIComponent(this.message);
+
+            /* Reset UI */
+            setTimeout(() => {
+                this.message = "";
+                this.open = false;
+                this.sending = false;
+            }, 500);
+        }
+    }
+}
+</script>
 
 
 @yield('content')
