@@ -1,4 +1,4 @@
-@props(['msg', 'seconds' => 3]) <!-- default timer 10s -->
+@props(['msg', 'seconds' => 2]) <!-- default timer 10s -->
 
 <p {{ $attributes->merge(['class' => 'flex items-center justify-between gap-2 text-sm font-medium text-white bg-green-600 px-4 py-2 rounded-md shadow-md']) }}>
     <span class="flex items-center gap-2">

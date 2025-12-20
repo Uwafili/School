@@ -1,5 +1,5 @@
-<?php
 
+<?php
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RiderController;
 use Illuminate\Support\Facades\Route;
@@ -9,25 +9,24 @@ use App\Http\Controllers\FoodController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\MessageController;
-
-
-
-
-// Remove unused import
+use App\Http\Controllers\PaymentController;
 
 Route::middleware('auth')->group(function(){
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::view('/about', 'posts.about')->name('about');
-
+    
     // Only one dashboard route for users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+    
     Route::view('/Shop', 'enroll.Shop')->name('Shop');
-
+    
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
-
-
+    
+    Route::view('/checkout', 'check.checkout')->name('checkout');
+    
+    Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
+    Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
 
 
 
@@ -48,6 +47,8 @@ Route::view('/cart','food.cart')->name('cart');
 Route::post('/cart/increase/{id}', [CartController::class, 'increase'])->name('cart.increase');
 Route::post('/cart/decrease/{id}', [CartController::class, 'decrease'])->name('cart.decrease');
 Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
+
+
 });
 
 Route::view('/', 'posts.index')->name('home');
