@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function(){
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
     Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
 
+    Route::view('/bank',('check.bank'))->name('bank');
 
 
 Route::any('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');

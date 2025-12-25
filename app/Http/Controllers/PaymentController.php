@@ -22,8 +22,8 @@ class PaymentController extends Controller
         ]);
 
        
-        // return redirect()->route('payment.success');
-        return back()->with('success','Payment Successful');
+        return redirect()->route('bank');
+        // return back()->with('success','Payment Successful');
     }
 
 
