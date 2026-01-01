@@ -61,15 +61,16 @@ class RiderController extends Controller
             
         ]);
     
-        return back()->with('success','Your details have been submitted. Admin will approve soon',['riders'=>$riders]);
+        return back()->with('success','Your details have been submitted. Admin will approve soon');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Rider $rider)
+    public function show($id)
     {
-        
+        $rider = Rider::findOrFail($id);
+        return view('ridersdashboard', compact('Rider'));
     }
 
     /**

@@ -3,6 +3,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FoodStore</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+        .fade-in-out {
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+    </style>
 </head>
 <nav x-data="{ open: false, darkMode: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'" class="shadow-md transition-colors duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -126,11 +135,12 @@
     </div>
 
 </nav>
+<!-- Page Loader -->
+<div id="page-loader" class="fixed inset-0 bg-white flex items-center justify-center z-50 opacity-0 transition-opacity duration-500">
+    <img src="{{ asset('asset/logo.png') }}" class="fade-in-out w-32 h-32" alt="Loading FoodStore">
+</div>
 <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
-<!-- Replace the floating WhatsApp icon with a floating "Select Food" dropdown button -->
 
-<!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
-<!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
 <div x-data="{ openFood: false }" class="fixed bottom-6 right-6 z-50">
     <div class="relative">
         <button @click="openFood = !openFood"
@@ -153,7 +163,7 @@
                 <img src="{{ ('asset/brown.jpg') }}" alt="Salad" class="w-5 h-5 mr-2"> Salad
             </a>
             <a href="{{ route('food.drinks') }}" class="flex items-center w-full text-left px-4 py-2 text-gray-700 hover:bg-yellow-100">
-                <img src="{{route('food.drinks') }}" alt="Drinks" class="w-5 h-5 mr-2"> Drinks
+                <img src="{{('asset/drink.webp') }}" alt="Drinks" class="w-5 h-5 mr-2"> Drinks
             </a>
         </div>
     </div>
@@ -162,114 +172,6 @@
 
 
 
-<div 
-    x-data="chatWidget()" 
-    class="fixed bottom-6 left-6 z-50"
->
-    <div class="relative">
-
-        <!-- FAB Button -->
-        <button 
-            @click="toggle()" 
-            :aria-expanded="open"
-            class="w-12 h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white flex items-center justify-center shadow-lg transition transform hover:-translate-y-1 focus:outline-none"
-            title="Message"
-        >
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-
-        <!-- Chat Input Box -->
-        <div 
-            x-show="open" 
-            x-cloak
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 translate-y-2"
-            x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in duration-150"
-            x-transition:leave-start="opacity-100 translate-y-0"
-            x-transition:leave-end="opacity-0 translate-y-2"
-            @click.away="close()"
-            class="mt-3 w-80 bg-white rounded-xl shadow-lg p-3 text-gray-800"
-        >
-            <label class="block text-xs text-gray-500 mb-2">
-                Send a quick message
-            </label>
-
-            <textarea 
-                x-model="message"
-                rows="3" 
-                placeholder="Type your message…" 
-                class="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            ></textarea>
-
-            <div class="mt-3 flex items-center justify-between">
-                <button 
-                    @click="send()" 
-                    type="button"
-                    class="px-3 py-2 rounded-md text-sm font-medium shadow-sm focus:outline-none"
-                    :class="message.trim() ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
-                    :disabled="!message.trim() || sending"
-                >
-                    <span x-show="!sending">Send</span>
-                    <span x-show="sending">Sending…</span>
-                </button>
-
-                <button 
-                    @click="close()" 
-                    type="button" 
-                    class="text-sm text-gray-500 hover:text-gray-700"
-                >
-                    Close
-                </button>
-            </div>
-
-            <p class="mt-2 text-xs text-gray-400">
-                Currently sends via SMS. Replace with AJAX for real chat.
-            </p>
-        </div>
-    </div>
-</div>
-
-<script>
-function chatWidget() {
-    return {
-        open: false,
-        message: "",
-        sending: false,
-
-        toggle() {
-            this.open = !this.open;
-        },
-
-        close() {
-            this.open = false;
-            this.message = "";
-        },
-
-        send() {
-            if (!this.message.trim()) return;
-
-            this.sending = true;
-
-            /* 
-             |-------------------------------------------------------
-             | CURRENT METHOD: Opens SMS App
-             |-------------------------------------------------------
-             */
-            window.location.href = 'sms:+1234567890?body=' + encodeURIComponent(this.message);
-
-            /* Reset UI */
-            setTimeout(() => {
-                this.message = "";
-                this.open = false;
-                this.sending = false;
-            }, 500);
-        }
-    }
-}
-</script>
 
 
 @yield('content')
@@ -293,8 +195,12 @@ function chatWidget() {
             <ul class="space-y-2">
                 <li><a href="{{ route('home') }}" class="hover:text-yellow-400 transition">Home</a></li>
                 <li><a href="{{ route('about') }}" class="hover:text-yellow-400 transition">About</a></li>
+                @guest
+                    
                 <li><a href="{{ route('register') }}" class="hover:text-yellow-400 transition">Register</a></li>
                 <li><a href="{{ route('login') }}" class="hover:text-yellow-400 transition">Login</a></li>
+                
+                @endguest
             </ul>
         </div>
         <!-- Contact & Social -->
@@ -327,4 +233,18 @@ function chatWidget() {
 </footer>
 
 <script src="//unpkg.com/alpinejs" defer>
- .floating-label { display: none; }</script>
+ .floating-label { display: none; }
+ 
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('page-loader').style.opacity = '1';
+});
+window.addEventListener('load', function() {
+    const loader = document.getElementById('page-loader');
+    loader.style.opacity = '0';
+    setTimeout(() => {
+        loader.style.display = 'none';
+    }, 500);
+});
+</script>

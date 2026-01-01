@@ -50,8 +50,13 @@ Route::post('/cart/decrease/{id}', [CartController::class, 'decrease'])->name('c
 Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
 
 
-});
 
+Route::view('/rider', 'enroll.rider')->name('rider.create');
+
+Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+});
+// Route::view('/rider/{id}',[RiderController::class, 'show'])->named('ridersdashboard');
+Route::view('/rider',)->nam
 Route::view('/', 'posts.index')->name('home');
 
 Route::middleware('guest')->group(function(){
@@ -65,12 +70,12 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::get('admin/dashboard', [AuthController::class, 'adminDashboard'])->name('admin.dashboard');
     Route::POST('admin/Post', [PostController::class, 'store'])->name('posts.store');
     Route::delete('/admin/Post/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
-
+    
     Route::view('/manage','admin.manage')->name('manage');
     Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage');
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroy'])->name('user.destroy');
-
-
+    
+    
     Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');
     Route::get('/riders',[AuthController::class,'showrider'])->name('riders');
 
@@ -84,11 +89,10 @@ Route::middleware(['auth', 'admin'])->group(function(){
      
 
     //  riders route
-    Route::view('/rider', 'enroll.rider')->name('rider.create');
-    Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+    
 
 
-
+    
 
 
 
