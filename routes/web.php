@@ -55,8 +55,6 @@ Route::view('/rider', 'enroll.rider')->name('rider.create');
 
 Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
 });
-// Route::view('/rider/{id}',[RiderController::class, 'show'])->named('ridersdashboard');
-Route::view('/rider',)->nam
 Route::view('/', 'posts.index')->name('home');
 
 Route::middleware('guest')->group(function(){

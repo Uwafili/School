@@ -59,7 +59,7 @@
                                 @error('phone') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
-
+ 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Vehicle Type</label>
@@ -123,7 +123,19 @@
                 </div>
             </div>
         </div>
+@if($Rider->status === 'approved')
+ <div class="bg-green-100 p-4 rounded">
+        <h2 class="text-xl font-bold mb-4">My Rider Details</h2>
 
+        <p><strong>Name:</strong> {{ $Rider->name }}</p>
+        <p><strong>Phone:</strong> {{ $Rider->phone }}</p>
+        <p><strong>Bike Number:</strong> {{ $Rider->bike_number }}</p>
+        <p><strong>Status:</strong> Approved ✅</p>
+    </div>
+@else
+    {{-- Rider approved – show details --}}
+   
+@endif
         <script>
             function previewImage(event){
                 const input = event.target;
@@ -137,3 +149,5 @@
 </div>
 
 @endsection
+
+

@@ -84,16 +84,13 @@ public function Approve($id){
   $Riders=Rider::findOrFail($id);
   $Riders->status='approved';
   $Riders->save();
-//   return back()->with('success', 'Rider approved successfully!');
-        return redirect()->route('ridersdashboard', compact('Rider->id'));
+//   return back()->with('success', 'Rider approved successfully!',compact('Riders'));
+    return redirect()->back()->with('success', 'Rider approved successfully.');
+
+      //   return redirect()->route('ridersdashboard', compact('Rider->id'));
 
 
 }
-public function show($id)
-    {
-        $rider = Rider::findOrFail($id);
-        return view('ridersdashboard', compact('Rider'));
-    }
 
 public function Reject($id){
   $Riders=Rider::findOrFail($id);
