@@ -123,7 +123,7 @@
                 </div>
             </div>
         </div>
-@if($Rider->status === 'approved')
+{{-- @if($Rider->status === 'approved')
  <div class="bg-green-100 p-4 rounded">
         <h2 class="text-xl font-bold mb-4">My Rider Details</h2>
 
@@ -132,10 +132,10 @@
         <p><strong>Bike Number:</strong> {{ $Rider->bike_number }}</p>
         <p><strong>Status:</strong> Approved ✅</p>
     </div>
-@else
+@else --}}
     {{-- Rider approved – show details --}}
    
-@endif
+{{-- @endif --}}
         <script>
             function previewImage(event){
                 const input = event.target;

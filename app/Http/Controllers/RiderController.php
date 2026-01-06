@@ -48,7 +48,7 @@ class RiderController extends Controller
         if($request->hasFile('image')){
             $path=Storage::disk('public')->put('post_image', $request->file('image'));
         }
-        $rider = Rider::findOrFail();
+        // $rider = Rider::findOrFail();
         $riders=Rider::create([
             'name'=>$request->name,
             'email'=>$request->email,
@@ -63,7 +63,7 @@ class RiderController extends Controller
             
         ]);
     
-        return back()->with('success','Your details have been submitted. Admin will approve soon',compact('Rider'));
+        return back()->with('success','Your details have been submitted. Admin will approve soon',);
     }
 
     /**
