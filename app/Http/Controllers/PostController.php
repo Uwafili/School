@@ -6,6 +6,8 @@ use App\Models\Post;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+  
 
 
 use Illuminate\Support\Facades\User;
@@ -90,7 +92,13 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
+        Gate::authorize('modify', $post);
+ 
+        if($post->image){
+            Storage::disk('public')->delete($post->image);
+        }
         $post->delete();
-        return back()->with('delete','Post has been removed');
+
+        return back()->with('delete', 'Your post was deleted');
     }
 }

@@ -12,9 +12,9 @@ class FoodController extends Controller
 {
 
 
-public function pizza()
+    public function pizza()
 {
-    $posts=Post::where('category', 'pizza')->paginate(5);
+    $posts=Post::where('category','pizza')->paginate(5);
     return view('food.pizza',['posts'=>$posts]);
 } 
 
@@ -37,11 +37,11 @@ public function drinks()
 }
 
 
-public function view($id)
-{
-    $posts = Post::findOrFail($id);
-    return view('food.view', $posts);
-}
+// public function view($id)
+// {
+//     $posts = Post::findOrFail($id);
+//     return view('food.view', $posts);
+// }
 
 
 

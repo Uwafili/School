@@ -43,19 +43,19 @@
         <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">Meet the Team</h2>
         <div class="flex flex-wrap justify-center gap-8">
             <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center w-64">
-                <img src="{{ asset('asset/user1.jpg') }}" alt="Sarah" class="w-20 h-20 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/cook1.jpg') }}" alt="Sarah" class="w-20 h-20 object-cover rounded-full mb-4">
                 <h4 class="text-xl font-semibold text-gray-800">Sarah Kim</h4>
                 <span class="text-yellow-600 font-medium mb-2">CEO & Co-Founder</span>
                 <p class="text-gray-600 text-center">Visionary leader and food enthusiast, Sarah brings passion and innovation to FoodStore.</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center w-64">
-                <img src="{{ asset('asset/user2.jpg') }}" alt="James" class="w-20 h-20 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/cook3.jpg') }}" alt="James" class="w-20 h-20 object-cover rounded-full mb-4">
                 <h4 class="text-xl font-semibold text-gray-800">James Lee</h4>
                 <span class="text-yellow-600 font-medium mb-2">Head of Operations</span>
                 <p class="text-gray-600 text-center">James ensures every order is delivered on time and every customer is happy.</p>
             </div>
             <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center w-64">
-                <img src="{{ asset('asset/user3.jpg') }}" alt="Maria" class="w-20 h-20 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/cook2.jpg') }}" alt="Maria" class="w-20 h-20 object-cover rounded-full mb-4">
                 <h4 class="text-xl font-semibold text-gray-800">Maria Perez</h4>
                 <span class="text-yellow-600 font-medium mb-2">Customer Success</span>
                 <p class="text-gray-600 text-center">Maria is always ready to help and support our valued customers and partners.</p>

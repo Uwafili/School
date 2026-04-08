@@ -15,7 +15,7 @@ class Store extends Model
         'owner',
         'email',
         'phone',
-        'address',
+        'address', 
         'image'
     ];
     protected $table = 'stores';

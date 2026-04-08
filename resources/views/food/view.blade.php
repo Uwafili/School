@@ -14,9 +14,14 @@
              <p class="text-green-600 font-bold mt-2">{{$post->price}}</p>
         <button class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">view more</button>
       </div>
+
+
+
+      
     </div>
 
-    <!-- Card 2 -->
+
+               
     
   </div>
     @endforeach

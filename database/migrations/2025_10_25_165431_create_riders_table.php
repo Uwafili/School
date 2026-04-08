@@ -22,6 +22,8 @@ return new class extends Migration
             $table->string('vehicle');
             $table->string('image')->nullable();
             $table->timestamps();
+            $table->string('status')->default('pending');
+            // $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
 
         });
     }
@@ -33,4 +35,9 @@ return new class extends Migration
     {
         Schema::dropIfExists('riders');
     }
+
+
+
+
+    
 };

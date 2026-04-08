@@ -33,22 +33,23 @@
 </section>
 
 
+
 <section class="py-12 bg-yellow-50">
     <div class="max-w-5xl mx-auto px-4">
         <h2 class="text-3xl font-bold text-center text-gray-800 mb-8">What Our Customers Say</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                <img src="{{ asset('images/user1.jpg') }}" alt="Customer 1" class="w-16 h-16 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/speaker.jpg') }}" alt="Customer 1" class="w-16 h-16 object-cover rounded-full mb-4">
                 <p class="text-gray-700 italic mb-2">"The pizza was amazing and delivery was super fast. Highly recommend FoodStore!"</p>
                 <span class="font-semibold text-yellow-600">- Sarah K.</span>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                <img src="{{ asset('images/user2.jpg') }}" alt="Customer 2" class="w-16 h-16 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/speaker2.jpg') }}" alt="Customer 2" class="w-16 h-16 object-cover rounded-full mb-4">
                 <p class="text-gray-700 italic mb-2">"Fresh ingredients and great taste. My family loves the burgers!"</p>
                 <span class="font-semibold text-yellow-600">- James L.</span>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                <img src="{{ asset('images/user3.jpg') }}" alt="Customer 3" class="w-16 h-16 object-cover rounded-full mb-4">
+                <img src="{{ asset('asset/speaker3.jpg') }}" alt="Customer 3" class="w-16 h-16 object-cover rounded-full mb-4">
                 <p class="text-gray-700 italic mb-2">"Healthy salads and friendly service. Will order again!"</p>
                 <span class="font-semibold text-yellow-600">- Maria P.</span>
             </div>

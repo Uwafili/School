@@ -44,9 +44,11 @@ class RiderController extends Controller
             'image'=>['file','nullable','mimes:jpg,png,jpeg,avif','max:3000']
         ]);
         $path=null;
+        
         if($request->hasFile('image')){
             $path=Storage::disk('public')->put('post_image', $request->file('image'));
         }
+        // $rider = Rider::findOrFail();
         $riders=Rider::create([
             'name'=>$request->name,
             'email'=>$request->email,
@@ -56,18 +58,22 @@ class RiderController extends Controller
             'vehicle'=>$request->vehicle,
             'image'=>$path, 
             "user_id"=>Auth::id()
+
+    
             
         ]);
-        return back()->with('success','Riders information has been submitted',['riders'=>$riders]);
+    
+        return back()->with('success','Your details have been submitted. Admin will approve soon',);
     }
 
     /**
      * Display the specified resource.
-     */
-    public function show(Rider $rider)
-    {
-        //
-    }
+    //  */
+    // public function show($id)
+    // {
+    //     $rider = Rider::findOrFail($id);
+    //     return view('ridersdashboard', compact('Rider'));
+    // }
 
     /**
      * Show the form for editing the specified resource.
