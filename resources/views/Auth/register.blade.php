@@ -10,7 +10,6 @@
         <h2 class="text-2xl font-bold text-center text-yellow-600 mb-6">Create an Account</h2>
         <form method="POST" action="{{ route('register') }}" id="registerForm">
             @csrf
-
             <!-- Name -->
             <div class="mb-4">
                 <label for="name" class="block text-gray-700 mb-2">Full Name</label>
