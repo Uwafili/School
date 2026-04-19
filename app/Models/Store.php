@@ -16,7 +16,8 @@ class Store extends Model
         'email',
         'phone',
         'address', 
-        'image'
+        'image',
+        'status'
     ];
     protected $table = 'stores';
     public function getImageUrlAttribute()

@@ -2,6 +2,7 @@
 <?php
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RiderController;
+use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StoreController;
@@ -18,8 +19,10 @@ Route::middleware('auth')->group(function(){
     // Only one dashboard route for users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    Route::view('/Shop', 'enroll.Shop')->name('Shop');
-    
+    // Store Routes
+    Route::get('/Shop', [StoreController::class, 'displayStore'])->name('Shop');
+    Route::get('/store', [StoreController::class, 'displayStore'])->name('store.info');
+    Route::get('/store/{store}', [StoreController::class, 'show'])->name('store.show');
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
     
@@ -51,9 +54,14 @@ Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.
 
 
 
-Route::view('/rider', 'enroll.rider')->name('rider.create');
-
+Route::get('/rider', [RiderController::class, 'create'])->name('rider.create');
 Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
+Route::get('/rider/dashboard', [RiderController::class, 'dashboard'])->name('rider.dashboard');
+
+
+Route::post('/order/create', [StoreController::class, 'createOrder'])->name('order.create');
+Route::post('/order/assign', [StoreController::class, 'assignRider'])->name('order.assign');
+
 });
 Route::view('/', 'posts.index')->name('home');
 
@@ -83,10 +91,12 @@ Route::middleware(['auth', 'admin'])->group(function(){
 
      Route::post('/Reject/Riders/{id}',[AuthController::class,'Reject'])->name('Reject');
 
+     // Store Approval Routes
+     Route::get('/storeapprove', [AdminController::class, 'storeApprove'])->name('storeapprove');
+     Route::post('/approve/store/{store}', [AdminController::class, 'approveStore'])->name('store.approve');
+     Route::post('/reject/store/{store}', [AdminController::class, 'rejectStore'])->name('store.reject');
 
-     
-
-    //  riders route
+     //  riders route
     
 
 
