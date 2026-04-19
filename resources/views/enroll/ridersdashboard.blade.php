@@ -6,14 +6,34 @@
             <h1 class="text-xl font-bold">Rider Dashboard</h1>
 
             <div class="flex items-center gap-4">
-                <!-- Notifications -->
-                <a href="#" class="relative">
+                <!-- Assigned Orders Link -->
+                <a href="{{ route('rider.assigned-orders') }}" class="relative hover:text-yellow-600 transition font-bold text-lg">
+                    📦 Orders
+                    @php
+                        $assignedCount = \App\Models\Order::where('rider_id', $Rider->id)
+                            ->where('status', 'assigned')
+                            ->count();
+                    @endphp
+                    @if ($assignedCount > 0)
+                        <span class="absolute -top-2 -right-3 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            {{ $assignedCount }}
+                        </span>
+                    @endif
+                </a>
+
+                <!-- Notifications Link -->
+                <a href="{{ route('rider.notifications') }}" class="relative hover:text-yellow-600 transition font-bold text-lg">
                     🔔
-                    {{-- @if(auth()->user()->unreadNotifications->count())
-                    <span class="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-2 rounded-full">
-                        {{ auth()->user()->unreadNotifications->count() }}
-                    </span>
-                    @endif --}}
+                    @php
+                        $unreadCount = \App\Models\Notification::where('rider_id', $Rider->id)
+                            ->where('is_read', false)
+                            ->count();
+                    @endphp
+                    @if ($unreadCount > 0)
+                        <span class="absolute -top-2 -right-3 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            {{ $unreadCount }}
+                        </span>
+                    @endif
                 </a>
 
                 <!-- User -->

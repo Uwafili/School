@@ -84,22 +84,22 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-10">
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-yellow-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">📦 TOTAL ORDERS</p>
-                        <p class="text-3xl font-bold text-yellow-600">120</p>
-                        <p class="text-xs text-gray-500 mt-2">+12 this week</p>
+                        <p class="text-3xl font-bold text-yellow-600">{{ $totalOrders }}</p>
+                        <p class="text-xs text-gray-500 mt-2">+{{ $weekOrders }} this week</p>
                     </div>
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-green-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">💰 TOTAL REVENUE</p>
-                        <p class="text-3xl font-bold text-green-600">₦250,000</p>
-                        <p class="text-xs text-gray-500 mt-2">+₦35,000 this week</p>
+                        <p class="text-3xl font-bold text-green-600">₦{{ number_format($totalRevenue, 0) }}</p>
+                        <p class="text-xs text-gray-500 mt-2">+₦{{ number_format($weekRevenue, 0) }} this week</p>
                     </div>
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-blue-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">⭐ STORE RATING</p>
                         <p class="text-3xl font-bold text-blue-600">4.8/5</p>
-                        <p class="text-xs text-gray-500 mt-2">Based on 234 reviews</p>
+                        <p class="text-xs text-gray-500 mt-2">Based on {{ $totalOrders }} orders</p>
                     </div>
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-purple-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">🚴 ACTIVE RIDERS</p>
-                        <p class="text-3xl font-bold text-purple-600">8</p>
+                        <p class="text-3xl font-bold text-purple-600">{{ count($riders) }}</p>
                         <p class="text-xs text-gray-500 mt-2">Available for delivery</p>
                     </div>
                 </div>
@@ -153,20 +153,28 @@
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
                                 required>
                                 <option disabled selected class="text-gray-500">📦 Select a Pending Order</option>
-                                <option value="1">#1021 - John Doe (Lekki) - ₦5,000</option>
-                                <option value="2">#1022 - Jane Smith (Ikoyi) - ₦3,500</option>
-                                <option value="3">#1023 - Mike Johnson (VI) - ₦4,200</option>
-                                <option value="4">#1024 - Sarah Williams (Abuja) - ₦6,100</option>
+                                @forelse ($orders as $order)
+                                    <option value="{{ $order->id }}">
+                                        #{{ $order->id }} - {{ $order->customer_name }} ({{ $order->customer_address }}) - ₦{{ $order->total_price }}
+                                    </option>
+                                @empty
+                                    <option disabled>No pending orders available</option>
+                                @endforelse
                             </select>
+
                             <select name="rider_id"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
                                 required>
                                 <option disabled selected class="text-gray-500">🚴 Select an Approved Rider</option>
-                                <option value="1">🏍️ Ahmed - Motorbike (★ 4.9) - Lekki area</option>
-                                <option value="2">🚴 Tunde - Bicycle (★ 4.7) - Ikoyi area</option>
-                                <option value="3">🚗 Chidi - Car (★ 4.8) - VI area</option>
-                                <option value="4">🏍️ Blessing - Motorbike (★ 4.6) - Abuja area</option>
+                                @forelse ($riders as $rider)
+                                    <option value="{{ $rider->id }}">
+                                        👤 {{ $rider->user->name }} - {{ $rider->phone }}
+                                    </option>
+                                @empty
+                                    <option disabled>No approved riders available</option>
+                                @endforelse
                             </select>
+
                             <button type="submit"
                                 class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition shadow-md">
                                 🎯 Assign to Rider
@@ -195,54 +203,67 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="py-4 px-5 font-semibold text-gray-800">#1001</td>
-                                <td class="py-4 px-5 text-gray-700">John Doe</td>
-                                <td class="py-4 px-5 font-bold text-gray-800">₦5,000</td>
-                                <td class="py-4 px-5 text-gray-700">🏍️ Ahmed (4.9★)</td>
-                                <td class="py-4 px-5"><span
-                                        class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">✓
-                                        Delivered</span></td>
-                                <td class="py-4 px-5 text-gray-600">2025-06-18</td>
-                                <td class="py-4 px-5"><button class="text-blue-600 hover:text-blue-800 font-semibold">👁️
-                                        View</button></td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="py-4 px-5 font-semibold text-gray-800">#1002</td>
-                                <td class="py-4 px-5 text-gray-700">Jane Smith</td>
-                                <td class="py-4 px-5 font-bold text-gray-800">₦3,500</td>
-                                <td class="py-4 px-5 text-gray-700">🚴 Tunde (4.7★)</td>
-                                <td class="py-4 px-5"><span
-                                        class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">🚚 In
-                                        Transit</span></td>
-                                <td class="py-4 px-5 text-gray-600">2025-06-17</td>
-                                <td class="py-4 px-5"><button class="text-blue-600 hover:text-blue-800 font-semibold">👁️
-                                        View</button></td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="py-4 px-5 font-semibold text-gray-800">#1003</td>
-                                <td class="py-4 px-5 text-gray-700">Mike Johnson</td>
-                                <td class="py-4 px-5 font-bold text-gray-800">₦4,200</td>
-                                <td class="py-4 px-5 text-gray-700">🚗 Chidi (4.8★)</td>
-                                <td class="py-4 px-5"><span
-                                        class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">📍
-                                        Assigned</span></td>
-                                <td class="py-4 px-5 text-gray-600">2025-06-17</td>
-                                <td class="py-4 px-5"><button class="text-blue-600 hover:text-blue-800 font-semibold">👁️
-                                        View</button></td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="py-4 px-5 font-semibold text-gray-800">#1004</td>
-                                <td class="py-4 px-5 text-gray-700">Sarah Williams</td>
-                                <td class="py-4 px-5 font-bold text-gray-800">₦6,100</td>
-                                <td class="py-4 px-5 text-gray-500">Not assigned</td>
-                                <td class="py-4 px-5"><span
-                                        class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">⏳
-                                        Pending</span></td>
-                                <td class="py-4 px-5 text-gray-600">2025-06-17</td>
-                                <td class="py-4 px-5"><button class="text-blue-600 hover:text-blue-800 font-semibold">🎯
-                                        Assign</button></td>
-                            </tr>
+                            @forelse ($recentOrders as $order)
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="py-4 px-5 font-semibold text-gray-800">#{{ $order->id }}</td>
+                                    <td class="py-4 px-5 text-gray-700">{{ $order->customer_name }}</td>
+                                    <td class="py-4 px-5 font-bold text-gray-800">₦{{ number_format($order->total_price, 0) }}</td>
+                                    <td class="py-4 px-5 text-gray-700">
+                                        @if ($order->rider)
+                                            👤 {{ $order->rider->user->name }}
+                                        @else
+                                            <span class="text-gray-500">Not assigned</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-4 px-5">
+                                        @if ($order->status === 'pending')
+                                            <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">⏳ Pending</span>
+                                        @elseif ($order->status === 'assigned')
+                                            <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">📍 Assigned</span>
+                                        @elseif ($order->status === 'accepted')
+                                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">🚚 In Transit</span>
+                                        @elseif ($order->status === 'completed')
+                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">✓ Delivered</span>
+                                        @elseif ($order->status === 'rejected')
+                                            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">❌ Rejected</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-4 px-5 text-gray-600">{{ $order->created_at->format('Y-m-d') }}</td>
+                                    <td class="py-4 px-5">
+                                        <div class="flex gap-2">
+                                            <a href="{{ route('order.view', $order->id) }}" class="text-blue-600 hover:text-blue-800 font-semibold text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition">
+                                                👁️ View
+                                            </a>
+                                            @if ($order->status === 'pending')
+                                                <button onclick="openAssignModal({{ $order->id }})" class="text-yellow-600 hover:text-yellow-800 font-semibold text-sm px-2 py-1 bg-yellow-50 rounded hover:bg-yellow-100 transition">
+                                                    🎯 Assign
+                                                </button>
+                                            @elseif ($order->status === 'accepted' || $order->status === 'assigned')
+                                                <form method="POST" action="{{ route('order.complete', $order->id) }}" style="display:inline;">
+                                                    @csrf
+                                                    <button type="submit" class="text-green-600 hover:text-green-800 font-semibold text-sm px-2 py-1 bg-green-50 rounded hover:bg-green-100 transition" onclick="return confirm('Mark this order as completed?')">
+                                                        ✅ Complete
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            @if ($order->status !== 'completed' && $order->status !== 'cancelled')
+                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
+                                                    @csrf
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" onclick="return confirm('Cancel this order?')">
+                                                        ✕ Cancel
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-8 px-5 text-center text-gray-500">
+                                        📭 No orders found
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                         </table>
                     </div>
@@ -257,34 +278,46 @@
                     <!-- Accepted Orders -->
                     <div class="border-l-4 border-green-500 bg-green-50 p-6 rounded-lg">
                         <h3 class="font-bold text-green-700 mb-4 flex items-center gap-2">
-                            <span>✅</span> Accepted Orders (3)
+                            <span>✅</span> Accepted Orders ({{ $riderResponses->where('status', 'accepted')->count() }})
                         </h3>
                         <div class="space-y-3">
-                            <div class="bg-white p-3 rounded border-l-2 border-green-400">
-                                <p class="font-semibold text-gray-800">#1002 - Jane Smith</p>
-                                <p class="text-sm text-gray-600">🚴 Tunde accepted · In Transit</p>
-                            </div>
-                            <div class="bg-white p-3 rounded border-l-2 border-green-400">
-                                <p class="font-semibold text-gray-800">#1003 - Mike Johnson</p>
-                                <p class="text-sm text-gray-600">🚗 Chidi accepted · Ready for pickup</p>
-                            </div>
+                            @forelse ($riderResponses->where('status', 'accepted') as $order)
+                                <div class="bg-white p-3 rounded border-l-2 border-green-400">
+                                    <p class="font-semibold text-gray-800">#{{ $order->id }} - {{ $order->customer_name }}</p>
+                                    <p class="text-sm text-gray-600">
+                                        @if ($order->rider)
+                                            👤 {{ $order->rider->user->name }} accepted · In Transit
+                                        @else
+                                            Not assigned
+                                        @endif
+                                    </p>
+                                </div>
+                            @empty
+                                <p class="text-gray-600 text-sm">No accepted orders yet</p>
+                            @endforelse
                         </div>
                     </div>
 
-                    <!-- Rejected/Pending Response -->
+                    <!-- Pending/Assigned Orders -->
                     <div class="border-l-4 border-orange-500 bg-orange-50 p-6 rounded-lg">
                         <h3 class="font-bold text-orange-700 mb-4 flex items-center gap-2">
-                            <span>⏳</span> Pending Responses (2)
+                            <span>⏳</span> Pending Responses ({{ $riderResponses->where('status', 'assigned')->count() }})
                         </h3>
                         <div class="space-y-3">
-                            <div class="bg-white p-3 rounded border-l-2 border-orange-400">
-                                <p class="font-semibold text-gray-800">#1004 - Sarah Williams</p>
-                                <p class="text-sm text-gray-600">🏍️ Blessing - Awaiting response</p>
-                            </div>
-                            <div class="bg-white p-3 rounded border-l-2 border-orange-400">
-                                <p class="font-semibold text-gray-800">#1005 - David Lee</p>
-                                <p class="text-sm text-gray-600">🚴 Tony - Awaiting response</p>
-                            </div>
+                            @forelse ($riderResponses->where('status', 'assigned') as $order)
+                                <div class="bg-white p-3 rounded border-l-2 border-orange-400">
+                                    <p class="font-semibold text-gray-800">#{{ $order->id }} - {{ $order->customer_name }}</p>
+                                    <p class="text-sm text-gray-600">
+                                        @if ($order->rider)
+                                            👤 {{ $order->rider->user->name }} - Awaiting response
+                                        @else
+                                            Not yet assigned
+                                        @endif
+                                    </p>
+                                </div>
+                            @empty
+                                <p class="text-gray-600 text-sm">No pending responses</p>
+                            @endforelse
                         </div>
                     </div>
                     </div>

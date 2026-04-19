@@ -3,6 +3,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FoodStore</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         @keyframes fadeInOut {
             0%, 100% { opacity: 0; }
@@ -14,126 +15,157 @@
     </style>
 </head>
 <nav x-data="{ open: false, darkMode: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'" class="shadow-md transition-colors duration-300">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <!-- Logo -->
-            <div class="flex-shrink-0">
-                <a href="{{ route('home') }}" class="text-2xl font-bold text-yellow-500">FoodStore</a>
+            <div class="flex-shrink-0 flex items-center gap-4">
+                <a href="{{ route('home') }}" class="text-xl sm:text-2xl font-bold text-yellow-500">FoodStore</a>
             </div>
-            <!-- Links -->
-            <div class="hidden md:flex space-x-6 items-center">
-                @auth
-               
-                    
-                <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Home</a>
-                <a href="{{ route('cart') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Cart</a>
 
-                @endauth
-                @guest
+            <!-- Desktop Menu -->
+            <div class="hidden lg:flex space-x-2 items-center">
+                @auth
+                    <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Home</a>
                     
-                <a href="{{ route('register') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Register</a>
-                <a href="{{ route('login') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Login</a>
-               
+                    <!-- Cart with Badge -->
+                    @php
+                        $cartItems = session()->get('cart', []);
+                        $cartCount = count($cartItems);
+                    @endphp
+                    <div class="relative">
+                        <a href="{{ route('cart') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition flex items-center gap-1 text-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            Cart
+                        </a>
+                        @if($cartCount > 0)
+                            <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $cartCount }}</span>
+                        @endif
+                    </div>
+
+                    <a href="{{ route('about') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">About</a>
+                @endauth
+
+                @guest
+                    <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Home</a>
+                    <a href="{{ route('register') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Register</a>
+                    <a href="{{ route('login') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Login</a>
                 @endguest
 
-                @auth
-                    
-                <a href="{{ route('about') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">About</a> 
-   
-            @if(Auth::user()->usertype === 'admin')
-           <a href="{{ route('admin.dashboard') }}" class="hover:text-yellow-500">Admin Panel</a>
-           @endif
+                <!-- Shop Owner Dashboard -->
+                @php
+                    $userStore = \App\Models\Store::where('user_id', Auth::id())->first();
+                    $userRider = \App\Models\Rider::where('user_id', Auth::id())->first();
+                @endphp
+                @if($userStore && $userStore->status === 'approved')
+                    <a href="{{ route('storedashboard') }}" :class="darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'" class="text-white px-3 py-2 rounded-full font-bold flex items-center gap-1 text-sm transition">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/></svg>
+                        Store
+                    </a>
+                @endif
 
+                <!-- Rider Dashboard -->
+                @if($userRider && $userRider->status === 'approved')
+                    <a href="{{ route('rider.dashboard') }}" :class="darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'" class="text-white px-3 py-2 rounded-full font-bold flex items-center gap-1 text-sm transition">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm11 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                        Rider
+                    </a>
+                @endif
 
-   
-                {{-- <a href="{{ route('contact') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Contact</a>
-                <a href="{{ route('service') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Services</a>--}}
-                
-                @endauth
+                <!-- Admin Panel -->
+                @if(Auth::check() && Auth::user()->usertype === 'admin')
+                    <a href="{{ route('admin.dashboard') }}" class="px-3 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm transition">Admin</a>
+                @endif
+
                 <!-- Dashboard Dropdown -->
-              
+                @auth
                 <div class="relative group">
-                    <button class="flex items-center focus:outline-none" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'">
+                    <button class="flex items-center gap-1 px-3 py-2 rounded transition text-sm" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h2v8H3zm4-8h2v16H7zm4-2h2v18h-2zm4-2h2v20h-2zm4 4h2v16h-2z"/></svg>
                         Dashboard
-                        <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
                     </button>
-                    <div class="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-md shadow-lg z-20 hidden group-hover:block">
-                         <a href="{{ route('dashboard') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700">Main Dashboard</a>
-                       {{-- <a href="{{ route('profile') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700">Profile</a>
-                        <a href="{{ route('settings') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700">Settings</a>
-                         --}}<form method="POST" action="{{ route('logout') }}">
+                    <div class="absolute right-0 mt-0 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-20 hidden group-hover:block">
+                        <a href="{{ route('dashboard') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">My Dashboard</a>
+                        <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700">Logout</button>
+                            <button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-b-lg text-sm">Logout</button>
                         </form>
                     </div>
                 </div>
-                <!-- Dark/Light Mode Button -->
-                <button @click="darkMode = !darkMode" class="ml-4 p-2 rounded transition" :class="darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-yellow-400 text-gray-800'">
-                    <span x-show="!darkMode">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71m16.97 0l-.71-.71M4.05 19.95l-.71-.71M21 12h1M3 12H2" />
-                        </svg>
-                    </span>
-
-                    <span x-show="darkMode">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                        </svg>
-                    </span>
-                </button>
+                @endauth
             </div>
-            <!-- Mobile Menu Button -->
-            <div class="md:hidden flex items-center">
-                <button @click="open = !open" class="text-2xl focus:outline-none">
+
+            <!-- Right Side Icons -->
+            <div class="flex items-center gap-2">
+                <!-- Dark/Light Mode Button -->
+                <button @click="darkMode = !darkMode" class="p-2 rounded transition" :class="darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-yellow-100 text-yellow-600'">
+                    <span x-show="!darkMode"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71m16.97 0l-.71-.71M4.05 19.95l-.71-.71M21 12h1M3 12H2"/></svg></span>
+                    <span x-show="darkMode"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg></span>
+                </button>
+
+                <!-- Mobile Menu Button -->
+                <button @click="open = !open" class="lg:hidden p-2 rounded transition" :class="darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'">
                     <svg :class="open ? 'hidden' : 'block'" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                     <svg :class="open ? 'block' : 'hidden'" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
-                </button>
-                <!-- Dark/Light Mode Button for mobile -->
-                <button @click="darkMode = !darkMode" class="ml-4 p-2 rounded transition" :class="darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-yellow-400 text-gray-800'">
-                    <span x-show="!darkMode">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71m16.97 0l-.71-.71M4.05 19.95l-.71-.71M21 12h1M3 12H2" />
-                        </svg>
-                    </span>
-                    <span x-show="darkMode">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                        </svg>
-                    </span>
                 </button>
             </div>
         </div>
     </div>
+
     <!-- Mobile Menu -->
-    <div x-show="open" class="md:hidden bg-white dark:bg-gray-900 px-4 pb-4 space-y-2 transition">
-        <a href="{{ route('home') }}" class="block py-2 border-b border-gray-200 dark:border-gray-700 hover:text-yellow-500 dark:hover:text-yellow-400">Home</a>
-      
-        @guest
-           <a href="{{ route('register') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Register</a>
-           <a href="{{ route('login') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="transition">Login</a>
-               
-           @endguest
-           <a href="{{ route('about') }}" class="block py-2 border-b border-gray-200 dark:border-gray-700 hover:text-yellow-500 dark:hover:text-yellow-400">About</a> 
-        {{-- <a href="{{ route('contact') }}" class="block py-2 border-b border-gray-200 dark:border-gray-700 hover:text-yellow-500 dark:hover:text-yellow-400">Contact</a>
-        <a href="{{ route('service') }}" class="block py-2 border-b border-gray-200 dark:border-gray-700 hover:text-yellow-500 dark:hover:text-yellow-400">Services</a>--}}
-        <div class="py-2">
-            <span class="block text-gray-500 dark:text-gray-300 font-semibold mb-1">Dashboard</span>
-            <a href="{{ route('dashboard') }}" class="block pl-4 py-1 hover:text-yellow-500 dark:hover:text-yellow-400">Main Dashboard</a>
-           {{--  <a href="{{ route('profile') }}" class="block pl-4 py-1 hover:text-yellow-500 dark:hover:text-yellow-400">Profile</a>
-            <a href="{{ route('settings') }}" class="block pl-4 py-1 hover:text-yellow-500 dark:hover:text-yellow-400">Settings</a> --}}
-            <form method="POST" action="{{ route('logout') }}" class="block pl-4 py-1">
-                @csrf
-                <button type="submit" class="text-left w-full hover:text-yellow-500 dark:hover:text-yellow-400">Logout</button>
-            </form>
+    <div x-show="open" @click.outside="open = false" class="lg:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 transition-all">
+        <div class="max-w-7xl mx-auto px-2 py-4 space-y-2">
+            @auth
+                <a href="{{ route('home') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">🏠 Home</a>
+                
+                <!-- Mobile Cart -->
+                @php
+                    $cartItems = session()->get('cart', []);
+                    $cartCount = count($cartItems);
+                @endphp
+                <a href="{{ route('cart') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm relative">
+                    🛒 Cart @if($cartCount > 0)<span class="ml-1 text-red-500 font-bold">({{ $cartCount }})</span>@endif
+                </a>
+
+                <a href="{{ route('about') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">ℹ️ About</a>
+
+                <!-- Mobile Store Dashboard -->
+                @if($userStore && $userStore->status === 'approved')
+                    <a href="{{ route('storedashboard') }}" class="block px-3 py-2 rounded bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm">🏪 Store Dashboard</a>
+                @endif
+
+                <!-- Mobile Rider Dashboard -->
+                @if($userRider && $userRider->status === 'approved')
+                    <a href="{{ route('rider.dashboard') }}" class="block px-3 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm">🏍️ Rider Dashboard</a>
+                @endif
+
+                <!-- Mobile Admin Panel -->
+                @if(Auth::user()->usertype === 'admin')
+                    <a href="{{ route('admin.dashboard') }}" class="block px-3 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm">👨‍💼 Admin Panel</a>
+                @endif
+
+                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+                <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">📊 My Dashboard</a>
+
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm text-red-600 dark:text-red-400 font-semibold">🚪 Logout</button>
+                </form>
+            @endauth
+
+            @guest
+                <a href="{{ route('home') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">🏠 Home</a>
+                <a href="{{ route('register') }}" class="block px-3 py-2 rounded bg-green-500 hover:bg-green-600 text-white font-semibold text-sm">✏️ Register</a>
+                <a href="{{ route('login') }}" class="block px-3 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm">🔐 Login</a>
+            @endguest
         </div>
     </div>
-
 </nav>
 <!-- Page Loader -->
 <div id="page-loader" class="fixed inset-0 bg-white flex items-center justify-center z-50 opacity-0 transition-opacity duration-500">
@@ -176,61 +208,7 @@
 
 @yield('content')
 
-<!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
-<footer class="bg-gray-900 text-gray-200 mt-16">
-    <div class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Logo & About -->
-        <div>
-            <div class="flex items-center mb-4">
-                <img src="{{ asset('asset/logo.png') }}" alt="FoodStore Logo" class="w-10 h-10 mr-2 rounded-full bg-yellow-400">
-                <span class="text-2xl font-bold text-yellow-400">FoodStore</span>
-            </div>
-            <p class="text-gray-400">
-                Delicious meals, delivered fresh to your door. Fast, reliable, and always tasty!
-            </p>
-        </div>
-        <!-- Quick Links -->
-        <div>
-            <h4 class="text-lg font-semibold text-yellow-400 mb-3">Quick Links</h4>
-            <ul class="space-y-2">
-                <li><a href="{{ route('home') }}" class="hover:text-yellow-400 transition">Home</a></li>
-                <li><a href="{{ route('about') }}" class="hover:text-yellow-400 transition">About</a></li>
-                @guest
-                    
-                <li><a href="{{ route('register') }}" class="hover:text-yellow-400 transition">Register</a></li>
-                <li><a href="{{ route('login') }}" class="hover:text-yellow-400 transition">Login</a></li>
-                
-                @endguest
-            </ul>
-        </div>
-        <!-- Contact & Social -->
-        <div>
-            <h4 class="text-lg font-semibold text-yellow-400 mb-3">Contact Us</h4>
-            <p class="text-gray-400 mb-2">Email: <a href="uwafilinorbet50@gmail.com" class="hover:text-yellow-400">uwafilinorbet50@gmail.com</a></p>
-            <p class="text-gray-400 mb-4">Phone: <a href="tel:+2347010282697" class="hover:text-yellow-400">+234 7010282697</a></p>
-            <div class="flex space-x-4">
-                <a href="#" class="hover:text-yellow-400" title="Facebook">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M22 12a10 10 0 10-11.5 9.95v-7.05h-2.1V12h2.1v-1.6c0-2.07 1.23-3.22 3.12-3.22.9 0 1.84.16 1.84.16v2.02h-1.04c-1.03 0-1.35.64-1.35 1.3V12h2.3l-.37 2.9h-1.93v7.05A10 10 0 0022 12z"/>
-                    </svg>
-                </a>
-                <a href="#" class="hover:text-yellow-400" title="Twitter">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M22.46 6c-.77.35-1.6.58-2.47.69a4.3 4.3 0 001.88-2.37 8.59 8.59 0 01-2.72 1.04 4.28 4.28 0 00-7.29 3.9A12.13 12.13 0 013 5.16a4.28 4.28 0 001.32 5.71c-.7-.02-1.36-.21-1.94-.53v.05a4.28 4.28 0 003.44 4.19c-.33.09-.68.14-1.04.14-.25 0-.5-.02-.74-.07a4.29 4.29 0 004 2.98A8.6 8.6 0 012 19.54a12.14 12.14 0 006.56 1.92c7.88 0 12.2-6.53 12.2-12.2 0-.19 0-.37-.01-.56A8.72 8.72 0 0024 4.59a8.49 8.49 0 01-2.54.7z"/>
-                    </svg>
-                </a>
-                <a href="#" class="hover:text-yellow-400" title="Instagram">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M7.75 2h8.5A5.75 5.75 0 0122 7.75v8.5A5.75 5.75 0 0116.25 22h-8.5A5.75 5.75 0 012 16.25v-8.5A5.75 5.75 0 017.75 2zm0 1.5A4.25 4.25 0 003.5 7.75v8.5A4.25 4.25 0 007.75 20.5h8.5a4.25 4.25 0 004.25-4.25v-8.5A4.25 4.25 0 0016.25 3.5zm4.25 2.25a5.25 5.25 0 110 10.5 5.25 5.25 0 010-10.5zm0 1.5a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5zm5.25 1.25a1 1 0 110 2 1 1 0 010-2z"/>
-                    </svg>
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="border-t border-gray-800 mt-8 pt-4 text-center text-gray-500 text-sm">
-        &copy; {{ date('Y') }} FoodStore. All rights reserved.
-    </div>
-</footer>
+@include('layouts.footer')
 
 <script src="//unpkg.com/alpinejs" defer>
  .floating-label { display: none; }

@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function(){
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     // Store Routes
+    Route::get('/store-create', [StoreController::class, 'create'])->name('store.create');
     Route::get('/Shop', [StoreController::class, 'displayStore'])->name('Shop');
     Route::get('/store', [StoreController::class, 'displayStore'])->name('store.info');
     Route::get('/store/{store}', [StoreController::class, 'show'])->name('store.show');
@@ -57,10 +58,19 @@ Route::post('/cart/remove/{id}', [CartController::class, 'remove'])->name('cart.
 Route::get('/rider', [RiderController::class, 'create'])->name('rider.create');
 Route::post('/rider', [RiderController::class, 'store'])->name('rider.store');
 Route::get('/rider/dashboard', [RiderController::class, 'dashboard'])->name('rider.dashboard');
+Route::get('/rider/notifications', [RiderController::class, 'notifications'])->name('rider.notifications');
+Route::post('/rider/notification/{notificationId}/read', [RiderController::class, 'markNotificationAsRead'])->name('notification.read');
+Route::get('/rider/assigned-orders', [RiderController::class, 'assignedOrders'])->name('rider.assigned-orders');
+Route::post('/rider/order/{orderId}/accept', [RiderController::class, 'acceptOrder'])->name('order.accept');
+Route::post('/rider/order/{orderId}/reject', [RiderController::class, 'rejectOrder'])->name('order.reject');
+Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount'])->name('notification.unread-count');
 
 
 Route::post('/order/create', [StoreController::class, 'createOrder'])->name('order.create');
 Route::post('/order/assign', [StoreController::class, 'assignRider'])->name('order.assign');
+Route::get('/order/{orderId}/view', [StoreController::class, 'viewOrder'])->name('order.view');
+Route::post('/order/{orderId}/complete', [StoreController::class, 'completeOrder'])->name('order.complete');
+Route::post('/order/{orderId}/cancel', [StoreController::class, 'cancelOrder'])->name('order.cancel');
 
 });
 Route::view('/', 'posts.index')->name('home');

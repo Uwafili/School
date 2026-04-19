@@ -77,9 +77,71 @@ class StoreController extends Controller
      */
     public function Storedashboard()
     {
-        $id=Auth::id();
-        $stores=Store::where("user_id",'=',$id)->get();
-        return view('enroll.storedashboard',['stores'=>$stores]);
+        $id = Auth::id();
+        $stores = Store::where("user_id", '=', $id)->get();
+        
+        // Get pending orders for this store
+        $orders = \App\Models\Order::whereIn('store_id', $stores->pluck('id'))
+            ->where('status', 'pending')
+            ->get();
+        
+        // Get approved riders
+        $riders = \App\Models\Rider::where('status', 'approved')->get();
+        
+        // Calculate statistics
+        $storeIds = $stores->pluck('id');
+        
+        // Total orders
+        $totalOrders = \App\Models\Order::whereIn('store_id', $storeIds)->count();
+        
+        // Total revenue (sum of completed/assigned orders)
+        $totalRevenue = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->whereIn('status', ['accepted', 'completed'])
+            ->sum('total_price');
+        
+        // Week's orders and revenue
+        $weekOrders = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
+        
+        $weekRevenue = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->whereIn('status', ['accepted', 'completed'])
+            ->where('created_at', '>=', now()->subDays(7))
+            ->sum('total_price');
+        
+        // Active riders (approved and have accepted orders)
+        $activeRiders = \App\Models\Rider::where('status', 'approved')
+            ->whereIn('id', \App\Models\Order::whereIn('store_id', $storeIds)
+                ->pluck('rider_id'))
+            ->count();
+        
+        // Recent orders (last 10)
+        $recentOrders = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->with('rider')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        // Rider responses (orders with riders and their status)
+        $riderResponses = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->whereNotNull('rider_id')
+            ->with('rider')
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return view('enroll.storedashboard', [
+            'stores' => $stores,
+            'orders' => $orders,
+            'riders' => $riders,
+            'totalOrders' => $totalOrders,
+            'totalRevenue' => $totalRevenue,
+            'weekOrders' => $weekOrders,
+            'weekRevenue' => $weekRevenue,
+            'activeRiders' => $activeRiders,
+            'recentOrders' => $recentOrders,
+            'riderResponses' => $riderResponses,
+        ]);
     }
 
     /**
@@ -187,6 +249,68 @@ class StoreController extends Controller
             'status' => 'assigned',
         ]);
 
-        return redirect()->route('storedashboard')->with('success', 'Order assigned to rider successfully!');
+        // Create notification for rider
+        \App\Models\Notification::create([
+            'rider_id' => $validated['rider_id'],
+            'order_id' => $order->id,
+            'title' => '📦 New Order Assigned',
+            'message' => "You have been assigned a new delivery order #{$order->id} from {$store->stores}. Customer: {$order->customer_name}, Address: {$order->customer_address}, Amount: ₦{$order->total_price}",
+            'type' => 'order_assigned',
+        ]);
+
+        return redirect()->route('storedashboard')->with('success', 'Order assigned to rider successfully! Rider notified.');
+    }
+
+    /**
+     * View order details
+     */
+    public function viewOrder($orderId)
+    {
+        $order = \App\Models\Order::with('rider', 'store')->findOrFail($orderId);
+        
+        // Verify the order belongs to the authenticated store
+        $store = Store::where('user_id', Auth::id())->first();
+        if (!$store || $order->store_id !== $store->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        return view('enroll.order_details', compact('order'));
+    }
+
+    /**
+     * Complete an order
+     */
+    public function completeOrder($orderId)
+    {
+        $order = \App\Models\Order::findOrFail($orderId);
+        
+        // Verify the order belongs to the authenticated store
+        $store = Store::where('user_id', Auth::id())->first();
+        if (!$store || $order->store_id !== $store->id) {
+            return redirect()->back()->with('error', 'Unauthorized');
+        }
+
+        $order->update(['status' => 'completed']);
+
+        return redirect()->route('storedashboard')->with('success', '✅ Order marked as completed!');
+    }
+
+    /**
+     * Cancel an order
+     */
+    public function cancelOrder(Request $request, $orderId)
+    {
+        $order = \App\Models\Order::findOrFail($orderId);
+        
+        // Verify the order belongs to the authenticated store
+        $store = Store::where('user_id', Auth::id())->first();
+        if (!$store || $order->store_id !== $store->id) {
+            return redirect()->back()->with('error', 'Unauthorized');
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        return redirect()->route('storedashboard')->with('warning', '❌ Order has been cancelled.');
     }
 }
+

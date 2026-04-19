@@ -118,4 +118,162 @@ class RiderController extends Controller
     {
         //
     }
+
+    /**
+     * Display all notifications for the authenticated rider
+     */
+    public function notifications()
+    {
+        $rider = Rider::where('user_id', Auth::id())->first();
+        
+        if (!$rider) {
+            return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
+        }
+
+        if ($rider->status !== 'approved') {
+            return redirect()->route('rider.create')->with('warning', 'Your application is still under review.');
+        }
+
+        $notifications = \App\Models\Notification::where('rider_id', $rider->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $unreadCount = \App\Models\Notification::where('rider_id', $rider->id)
+            ->where('is_read', false)
+            ->count();
+
+        return view('enroll.rider_notifications', compact('notifications', 'unreadCount', 'rider'));
+    }
+
+    /**
+     * Mark a notification as read
+     */
+    public function markNotificationAsRead($notificationId)
+    {
+        $notification = \App\Models\Notification::findOrFail($notificationId);
+        
+        // Verify the notification belongs to the authenticated rider
+        $rider = Rider::where('user_id', Auth::id())->first();
+        if ($notification->rider_id !== $rider->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        $notification->markAsRead();
+        
+        return redirect()->route('rider.notifications')->with('success', 'Notification marked as read.');
+    }
+
+    /**
+     * Get unread notification count (for AJAX/Dashboard)
+     */
+    public function getUnreadCount()
+    {
+        $rider = Rider::where('user_id', Auth::id())->first();
+        
+        if (!$rider) {
+            return response()->json(['count' => 0]);
+        }
+
+        $count = \App\Models\Notification::where('rider_id', $rider->id)
+            ->where('is_read', false)
+            ->count();
+
+        return response()->json(['count' => $count]);
+    }
+
+    /**
+     * Display assigned orders for the rider
+     */
+    public function assignedOrders()
+    {
+        $rider = Rider::where('user_id', Auth::id())->first();
+        
+        if (!$rider) {
+            return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
+        }
+
+        if ($rider->status !== 'approved') {
+            return redirect()->route('rider.create')->with('warning', 'Your application is still under review.');
+        }
+
+        $orders = \App\Models\Order::where('rider_id', $rider->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('enroll.rider_assigned_orders', compact('orders', 'rider'));
+    }
+
+    /**
+     * Accept an assigned order
+     */
+    public function acceptOrder($orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->first();
+        
+        if (!$rider) {
+            return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
+        }
+
+        $order = \App\Models\Order::findOrFail($orderId);
+
+        // Verify the order is assigned to this rider
+        if ($order->rider_id !== $rider->id) {
+            return redirect()->back()->with('error', 'This order is not assigned to you.');
+        }
+
+        // Only accept orders that are in "assigned" status
+        if ($order->status !== 'assigned') {
+            return redirect()->back()->with('error', 'You can only accept orders that are in assigned status.');
+        }
+
+        $order->update(['status' => 'accepted']);
+
+        // Update notification
+        \App\Models\Notification::where('order_id', $order->id)
+            ->where('rider_id', $rider->id)
+            ->update(['type' => 'order_completed']);
+
+        return redirect()->route('rider.assigned-orders')->with('success', '✅ Order accepted! You can now proceed with delivery.');
+    }
+
+    /**
+     * Reject an assigned order
+     */
+    public function rejectOrder(Request $request, $orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->first();
+        
+        if (!$rider) {
+            return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
+        }
+
+        $order = \App\Models\Order::findOrFail($orderId);
+
+        // Verify the order is assigned to this rider
+        if ($order->rider_id !== $rider->id) {
+            return redirect()->back()->with('error', 'This order is not assigned to you.');
+        }
+
+        // Only reject orders that are in "assigned" status
+        if ($order->status !== 'assigned') {
+            return redirect()->back()->with('error', 'You can only reject orders that are in assigned status.');
+        }
+
+        // Reject the order
+        $order->update([
+            'status' => 'rejected',
+            'rider_id' => null,
+        ]);
+
+        // Create rejection notification for store
+        \App\Models\Notification::create([
+            'rider_id' => $rider->id,
+            'order_id' => $order->id,
+            'title' => '❌ Order Rejected',
+            'message' => "Rider #{$rider->id} ({$rider->user->name}) has rejected order #{$order->id}. Reason: {$request->input('reason', 'No reason provided')}",
+            'type' => 'order_cancelled',
+        ]);
+
+        return redirect()->route('rider.assigned-orders')->with('warning', '❌ Order rejected and returned to pending list.');
+    }
 }
