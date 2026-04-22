@@ -13,7 +13,7 @@
             <!-- Email -->
             <div class="mb-4">
                 <label for="email" class="block text-gray-700 mb-2">Email Address</label>
-                <input id="email" type="text" name="email" value="{{ old('email') }}"
+                <input id="email" type="email" name="email" value="{{ old('email') }}"
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
                 @error('email')
                     <span class="text-red-500 text-sm">{{ $message }}</span>
