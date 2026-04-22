@@ -77,9 +77,9 @@ Route::view('/', 'posts.index')->name('home');
 
 Route::middleware('guest')->group(function(){
     Route::view('/register', 'Auth.register')->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.store');
     Route::view('/login', 'Auth.login')->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 });
 
 Route::middleware(['auth', 'admin'])->group(function(){
@@ -88,7 +88,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::delete('/admin/Post/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     
     Route::view('/manage','admin.manage')->name('manage');
-    Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage');
+    Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage.index');
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroy'])->name('user.destroy');
     
     

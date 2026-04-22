@@ -8,7 +8,7 @@
     
     <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
         <h2 class="text-2xl font-bold text-center text-yellow-600 mb-6">Welcome back</h2>
-        <form method="POST" action="{{ route('login') }}" id="loginForm">
+        <form method="POST" action="{{ route('login.store') }}" id="loginForm">
             @csrf
             <!-- Email -->
             <div class="mb-4">
@@ -39,7 +39,7 @@
             <button type="submit" id="loginBtn"
                 class="w-full bg-yellow-500 text-white py-2 rounded-lg font-semibold hover:bg-yellow-600 transition flex items-center justify-center">
                 <i class="fas fa-spinner fa-spin mr-2" id="loadingIcon" style="display:none;"></i>
-                Register
+                Login
             </button>
         </form>
         <div class="mt-4 text-center text-gray-600">
