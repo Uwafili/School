@@ -41,7 +41,7 @@
                 </div>
             @else
                 <form method="POST" action="{{ route('store') }}" enctype="multipart/form-data">
-@csrf
+                          @csrf
                     <div class="mb-4">
                         <label for="store_name" class="block text-gray-700 mb-2">Store Name</label>
                         <input id="stores" name="stores" type="text"

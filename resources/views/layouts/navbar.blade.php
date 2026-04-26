@@ -1,9 +1,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>FoodStore</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js">
+    </script>
     <style>
         @keyframes fadeInOut {
             0%, 100% { opacity: 0; }
@@ -208,12 +210,24 @@
 
 @yield('content')
 
+<script>
+    fetch('/submit', {
+    method: 'POST',
+    headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ data: 'test' })
+});
+</script>
+
 @include('layouts.footer')
 
 <script src="//unpkg.com/alpinejs" defer>
  .floating-label { display: none; }
  
 </script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('page-loader').style.opacity = '1';
