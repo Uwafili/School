@@ -15,7 +15,7 @@
         .fade-in-out {
             animation: fadeInOut 2s ease-in-out infinite;
         }
-    </script>
+    </style>
 </head>
 <body>
 <nav x-data="{ open: false, darkMode: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'" class="shadow-md transition-colors duration-300">
