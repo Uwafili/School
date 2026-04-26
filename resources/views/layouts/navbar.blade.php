@@ -212,17 +212,6 @@
 
 @yield('content')
 
-<script>
-    fetch('/submit', {
-    method: 'POST',
-    headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ data: 'test' })
-});
-</script>
-
 @include('layouts.footer')
 
 <style>
