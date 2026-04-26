@@ -3,7 +3,7 @@
 @section('content')
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <div class="min-h-screen flex items-center justify-center bg-gray-100">
 
         <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
@@ -108,4 +108,8 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Registering...';
     });
+
+
+    axios.defaults.headers.common['X-CSRF-TOKEN'] =
+document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 </script>
