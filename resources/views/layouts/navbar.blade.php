@@ -225,7 +225,7 @@
 
 @include('layouts.footer')
 
-<script>
+<styl>
  .floating-label { display: none; }
 </style>
 
