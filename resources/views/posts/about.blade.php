@@ -70,7 +70,7 @@
         <p class="text-gray-600 mb-6">
             Whether you’re a food lover, a restaurant owner, or a delivery partner, FoodStore welcomes you to be part of our growing family. Let’s make every meal memorable—together!
         </p>
-        <a href="{{ route('register') }}" class="inline-block bg-yellow-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">Get Started</a>
+        {{-- <a href="{{ route('register') }}" class="inline-block bg-yellow-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">Get Started</a> --}}
     </div>
 </section>
 @endsection

@@ -19,7 +19,7 @@
                     <li><a href="{{ route('about') }}" class="text-gray-300 hover:text-yellow-400 transition">About Us</a></li>
                     <li><a href="{{ route('cart') }}" class="text-gray-300 hover:text-yellow-400 transition">My Cart</a></li>
                     @guest
-                        <li><a href="{{ route('register') }}" class="text-gray-300 hover:text-yellow-400 transition">Register</a></li>
+                        {{-- <li><a href="{{ route('register') }}" class="text-gray-300 hover:text-yellow-400 transition">Register</a></li> --}}
                     @endguest
                 </ul>
             </div>

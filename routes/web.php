@@ -12,8 +12,8 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PaymentController;
 
-
-    // Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::middleware('auth')->group(function(){
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::view('/about', 'posts.about')->name('about');
     
     // Only one dashboard route for users
@@ -71,16 +71,16 @@ Route::post('/order/assign', [StoreController::class, 'assignRider'])->name('ord
 Route::get('/order/{orderId}/view', [StoreController::class, 'viewOrder'])->name('order.view');
 Route::post('/order/{orderId}/complete', [StoreController::class, 'completeOrder'])->name('order.complete');
 Route::post('/order/{orderId}/cancel', [StoreController::class, 'cancelOrder'])->name('order.cancel');
-// Route::middleware('auth')->group(function(){
-// });
+
+});
 Route::view('/', 'posts.index')->name('home');
 
-// Route::middleware('guest')->group(function(){
-//     Route::view('/register', 'Auth.register')->name('register');
-//     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
-//     Route::view('/login', 'Auth.login')->name('login');
-//     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
-// });
+Route::middleware('guest')->group(function(){
+    Route::view('/register', 'Auth.register')->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+    Route::view('/login', 'Auth.login')->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+});
 
 Route::middleware(['auth', 'admin'])->group(function(){
     Route::get('admin/dashboard', [AuthController::class, 'adminDashboard'])->name('admin.dashboard');
