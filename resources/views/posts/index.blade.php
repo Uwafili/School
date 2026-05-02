@@ -5,7 +5,7 @@
     <div class="relative z-10 text-center">
         <h1 class="text-4xl md:text-6xl font-bold text-yellow-400 drop-shadow-lg">Welcome to FoodStore</h1>
         <p class="mt-4 text-lg md:text-2xl text-white drop-shadow">Delicious meals, delivered fresh to your door.</p>
-        <a href="{{ route('register') }}" class="mt-6 inline-block bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">Get Started</a>
+        {{-- <a href="{{ route('register') }}" class="mt-6 inline-block bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">Get Started</a> --}}
     </div>
 </header>
 
