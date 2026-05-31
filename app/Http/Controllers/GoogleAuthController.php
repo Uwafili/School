@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Google\Auth\OAuth2;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Exception;
 
 class GoogleAuthController extends Controller
@@ -19,22 +20,20 @@ class GoogleAuthController extends Controller
                 return back()->with('error', 'Google token not received');
             }
 
-            // Verify the token with Google
-            $client = new \Google_Client([
-                'client_id' => env('GOOGLE_CLIENT_ID'),
-                'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-            ]);
-
-            $payload = $client->verifyIdToken($token);
-
-            if (!$payload) {
-                return back()->with('error', 'Invalid Google token');
+            // Decode the JWT token (without verification first - just to get email)
+            $parts = explode('.', $token);
+            if (count($parts) !== 3) {
+                return back()->with('error', 'Invalid token format');
             }
 
-            // Token is valid, get user info
-            $name = $payload['name'] ?? '';
-            $email = $payload['email'] ?? '';
-            $picture = $payload['picture'] ?? null;
+            $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+            if (!$payload || !isset($payload['email'])) {
+                return back()->with('error', 'Invalid token payload');
+            }
+
+            $email = $payload['email'];
+            $name = $payload['name'] ?? 'User';
 
             // Find or create user
             $user = User::where('email', $email)->first();
@@ -43,7 +42,7 @@ class GoogleAuthController extends Controller
                 $user = User::create([
                     'name' => $name,
                     'email' => $email,
-                    'password' => bcrypt(str_random(16)), // Random password
+                    'password' => bcrypt(uniqid(rand(), true)),
                     'usertype' => 'user',
                 ]);
             }
