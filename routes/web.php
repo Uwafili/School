@@ -82,9 +82,8 @@ Route::middleware('guest')->group(function(){
     Route::view('/login', 'Auth.login')->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
     
-    // Google OAuth routes
-    Route::get('/auth/google', [GoogleAuthController::class, 'googleLogin'])->name('auth.google');
-    Route::get('/auth/google/callback', [GoogleAuthController::class, 'googleCallback'])->name('auth.google.callback');
+    // Google OAuth verification
+    Route::post('/google/verify', [GoogleAuthController::class, 'verify'])->name('google.verify');
 });
 
 Route::middleware(['auth', 'admin'])->group(function(){

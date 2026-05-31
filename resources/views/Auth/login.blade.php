@@ -3,6 +3,7 @@
 @section('content')
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-100">
     
@@ -51,11 +52,11 @@
         </div>
         
         <!-- Google Sign-In Button -->
-        <a href="{{ route('auth.google') }}"
-            class="w-full bg-white border-2 border-red-500 text-red-500 py-2 rounded-lg font-semibold hover:bg-red-50 transition flex items-center justify-center">
-            <i class="fab fa-google mr-2"></i>
-            Sign in with Google
-        </a>
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID"
+             data-callback="handleCredentialResponse">
+        </div>
+        <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin" data-shape="rectangular" data-logo_alignment="left"></div>
 
         <div class="mt-4 text-center text-gray-600">
              Don't have an account?
@@ -84,4 +85,27 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Logging in...';
     });
+
+    // Handle Google Sign-In
+    function handleCredentialResponse(response) {
+        // Send token to your backend
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ route("google.verify") }}';
+        
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = response.credential;
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = '{{ csrf_token() }}';
+        
+        form.appendChild(tokenInput);
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
 </script>

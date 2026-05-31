@@ -5,43 +5,56 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Laravel\Socialite\Facades\Socialite;
+use Google\Auth\OAuth2;
 use Exception;
 
 class GoogleAuthController extends Controller
 {
-    // Redirect to Google
-    public function googleLogin()
-    {
-        return Socialite::driver('google')
-            ->scopes(['profile', 'email'])
-            ->redirect();
-    }
-
-    // Handle Google callback
-    public function googleCallback()
+    public function verify(Request $request)
     {
         try {
-            $user = Socialite::driver('google')->user();
-        } catch (Exception $e) {
-            return redirect()->route('login')->with('error', 'Google authentication failed.');
-        }
+            $token = $request->input('token');
+            
+            if (!$token) {
+                return back()->with('error', 'Google token not received');
+            }
 
-        // Check if user exists, if not create
-        $existingUser = User::where('email', $user->email)->first();
-
-        if ($existingUser) {
-            Auth::login($existingUser);
-        } else {
-            $newUser = User::create([
-                'name' => $user->name,
-                'email' => $user->email,
-                'password' => bcrypt('google-auth-password'), // Dummy password
-                'usertype' => 'user',
+            // Verify the token with Google
+            $client = new \Google_Client([
+                'client_id' => env('GOOGLE_CLIENT_ID'),
+                'client_secret' => env('GOOGLE_CLIENT_SECRET'),
             ]);
-            Auth::login($newUser);
-        }
 
-        return redirect()->route('dashboard')->with('success', 'Logged in with Google!');
+            $payload = $client->verifyIdToken($token);
+
+            if (!$payload) {
+                return back()->with('error', 'Invalid Google token');
+            }
+
+            // Token is valid, get user info
+            $name = $payload['name'] ?? '';
+            $email = $payload['email'] ?? '';
+            $picture = $payload['picture'] ?? null;
+
+            // Find or create user
+            $user = User::where('email', $email)->first();
+
+            if (!$user) {
+                $user = User::create([
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => bcrypt(str_random(16)), // Random password
+                    'usertype' => 'user',
+                ]);
+            }
+
+            // Log the user in
+            Auth::login($user);
+
+            return redirect()->route('dashboard')->with('success', 'Logged in with Google!');
+        } catch (Exception $e) {
+            return back()->with('error', 'Google authentication failed: ' . $e->getMessage());
+        }
     }
 }
+
