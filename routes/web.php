@@ -11,9 +11,11 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\GoogleAuthController;
 
 Route::middleware('auth')->group(function(){
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
     Route::view('/about', 'posts.about')->name('about');
     
     // Only one dashboard route for users
@@ -80,6 +82,9 @@ Route::middleware('guest')->group(function(){
     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
     Route::view('/login', 'Auth.login')->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+    
+    // Google OAuth verification (no auth required)
+    Route::post('/google/verify', [GoogleAuthController::class, 'verify'])->name('google.verify');
 });
 
 Route::middleware(['auth', 'admin'])->group(function(){

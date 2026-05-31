@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Session;
 use Exception;
 
 class GoogleAuthController extends Controller
@@ -20,7 +17,7 @@ class GoogleAuthController extends Controller
                 return back()->with('error', 'Google token not received');
             }
 
-            // Decode the JWT token (without verification first - just to get email)
+            // Decode the JWT token (just to get email/name - no DB storage)
             $parts = explode('.', $token);
             if (count($parts) !== 3) {
                 return back()->with('error', 'Invalid token format');
@@ -32,28 +29,26 @@ class GoogleAuthController extends Controller
                 return back()->with('error', 'Invalid token payload');
             }
 
-            $email = $payload['email'];
-            $name = $payload['name'] ?? 'User';
+            // Store in session only (NO database)
+            Session::put('google_user', [
+                'email' => $payload['email'],
+                'name' => $payload['name'] ?? 'User',
+                'picture' => $payload['picture'] ?? null,
+            ]);
 
-            // Find or create user
-            $user = User::where('email', $email)->first();
+            Session::put('authenticated', true);
 
-            if (!$user) {
-                $user = User::create([
-                    'name' => $name,
-                    'email' => $email,
-                    'password' => bcrypt(uniqid(rand(), true)),
-                    'usertype' => 'user',
-                ]);
-            }
-
-            // Log the user in
-            Auth::login($user);
-
-            return redirect()->route('dashboard')->with('success', 'Logged in with Google!');
+            return redirect()->route('dashboard')->with('success', 'Welcome!');
         } catch (Exception $e) {
-            return back()->with('error', 'Google authentication failed: ' . $e->getMessage());
+            return back()->with('error', 'Authentication failed: ' . $e->getMessage());
         }
+    }
+
+    public function logout()
+    {
+        Session::forget('google_user');
+        Session::forget('authenticated');
+        return redirect()->route('login')->with('success', 'Logged out');
     }
 }
 
