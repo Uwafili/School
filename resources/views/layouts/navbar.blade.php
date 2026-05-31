@@ -53,8 +53,8 @@
 
                 @guest
                     <a href="{{ route('home') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Home</a>
-                    {{-- <a href="{{ route('register') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Register</a> --}}
-                    {{-- <a href="{{ route('login') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Login</a> --}}
+                    <a href="{{ route('register') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Register</a>
+                    <a href="{{ route('login') }}" :class="darkMode ? 'hover:text-yellow-400' : 'hover:text-yellow-500'" class="px-3 py-2 rounded transition text-sm">Login</a>
                 @endguest
 
                 <!-- Shop Owner Dashboard -->
