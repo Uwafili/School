@@ -42,6 +42,21 @@
                 Login
             </button>
         </form>
+        
+        <!-- Divider -->
+        <div class="my-6 flex items-center">
+            <div class="flex-1 border-t border-gray-300"></div>
+            <span class="px-3 text-gray-500 text-sm">Or</span>
+            <div class="flex-1 border-t border-gray-300"></div>
+        </div>
+        
+        <!-- Google Sign-In Button -->
+        <a href="{{ route('auth.google') }}"
+            class="w-full bg-white border-2 border-red-500 text-red-500 py-2 rounded-lg font-semibold hover:bg-red-50 transition flex items-center justify-center">
+            <i class="fab fa-google mr-2"></i>
+            Sign in with Google
+        </a>
+
         <div class="mt-4 text-center text-gray-600">
              Don't have an account?
             <a href="{{ route('register') }}" class="text-yellow-600 hover:underline">Register</a>

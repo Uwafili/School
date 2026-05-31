@@ -112,11 +112,11 @@
 
 <script>
     fetch('/submit', {
-    method: 'POST',
-    headers: {
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ data: 'test' })
-});
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data: 'test' })
+    });
 </script>
