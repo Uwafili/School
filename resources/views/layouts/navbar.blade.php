@@ -165,8 +165,8 @@
 
             @guest
                 <a href="{{ route('home') }}" class="block px-3 py-2 rounded hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">🏠 Home</a>
-                {{-- <a href="{{ route('register') }}" class="block px-3 py-2 rounded bg-green-500 hover:bg-green-600 text-white font-semibold text-sm">✏️ Register</a> --}}
-                {{-- <a href="{{ route('login') }}" class="block px-3 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm">🔐 Login</a> --}}
+                <a href="{{ route('register') }}" class="block px-3 py-2 rounded bg-green-500 hover:bg-green-600 text-white font-semibold text-sm">✏️ Register</a> --}}
+               <a href="{{ route('login') }}" class="block px-3 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm">🔐 Login</a>
             @endguest
         </div>
     </div>

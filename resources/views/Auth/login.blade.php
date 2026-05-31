@@ -44,7 +44,7 @@
         </form>
         <div class="mt-4 text-center text-gray-600">
              Don't have an account?
-            {{-- <a href="{{ route('register') }}" class="text-yellow-600 hover:underline">Register</a> --}}
+            <a href="{{ route('register') }}" class="text-yellow-600 hover:underline">Register</a>
         </div>
     </div>
 </div>
