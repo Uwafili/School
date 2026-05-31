@@ -3,7 +3,6 @@
 @section('content')
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-100">
     
@@ -43,21 +42,6 @@
                 Login
             </button>
         </form>
-        
-        <!-- Divider -->
-        <div class="my-6 flex items-center">
-            <div class="flex-1 border-t border-gray-300"></div>
-            <span class="px-3 text-gray-500 text-sm">Or</span>
-            <div class="flex-1 border-t border-gray-300"></div>
-        </div>
-        
-        <!-- Google Sign-In Button -->
-        <div id="g_id_onload"
-             data-client_id="494344827374-72gibtcdosc950qqptavgp12nj228osn.apps.googleusercontent.com"
-             data-callback="handleCredentialResponse">
-        </div>
-        <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin" data-shape="rectangular" data-logo_alignment="left"></div>
-
         <div class="mt-4 text-center text-gray-600">
              Don't have an account?
             <a href="{{ route('register') }}" class="text-yellow-600 hover:underline">Register</a>
@@ -85,27 +69,5 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Logging in...';
     });
-
-    // Handle Google Sign-In
-    function handleCredentialResponse(response) {
-        // Send token to your backend
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("google.verify") }}';
-        
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'token';
-        tokenInput.value = response.credential;
-        
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = '_token';
-        csrfInput.value = '{{ csrf_token() }}';
-        
-        form.appendChild(tokenInput);
-        form.appendChild(csrfInput);
-        document.body.appendChild(form);
-        form.submit();
-    }
 </script>
+
