@@ -16,18 +16,19 @@ class AuthController extends Controller
    public function register(Request $request){
 
     $field=$request->validate([
-        'name'=>['required','max:255'],
+         'name'=>['required','string','max:255'],
         'email'=>['required', 'max:255','email', 'unique:users,email'],
-        'password'=>['required','min:3','confirmed']
+         'password'=>['required','string','min:8','confirmed']
     ]);
     
     $field['usertype'] = ($request->email === 'uwafilinorbet50@gmail.com') ? 'admin' : 'user';
     $user = User::create($field);
     
     Auth::login($user);
+   $request->session()->regenerate();
 
 
-    return redirect()->route('home');
+   return redirect()->intended(route('dashboard'));
 
    }
 
@@ -37,7 +38,13 @@ class AuthController extends Controller
             'password'=>['required']
          ]);
          if(Auth::attempt($field,$request->remember)){
-                return redirect()->intended('dashboard');
+               $request->session()->regenerate();
+
+               $destination = Auth::user()->usertype === 'admin'
+                  ? route('admin.dashboard')
+                  : route('dashboard');
+
+               return redirect()->intended($destination);
          }
          else{
             return back()->withErrors([

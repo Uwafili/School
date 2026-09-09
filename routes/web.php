@@ -83,8 +83,10 @@ Route::middleware('guest')->group(function(){
     Route::view('/login', 'Auth.login')->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
     
-    // Google OAuth verification (no auth required)
-    Route::post('/google/verify', [GoogleAuthController::class, 'verify'])->name('google.verify');
+    Route::get('/auth/{provider}/redirect', [GoogleAuthController::class, 'redirect'])->whereIn('provider', ['google', 'facebook'])->name('social.redirect');
+    Route::get('/auth/{provider}/callback', [GoogleAuthController::class, 'callback'])->whereIn('provider', ['google', 'facebook'])->name('social.callback');
+    Route::get('/auth/google/redirect', fn () => redirect()->route('social.redirect', 'google'))->name('google.redirect');
+    Route::get('/auth/facebook/redirect', fn () => redirect()->route('social.redirect', 'facebook'))->name('facebook.redirect');
 });
 
 Route::middleware(['auth', 'admin'])->group(function(){
