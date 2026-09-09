@@ -81,7 +81,7 @@
             background: var(--page-bg);
         }
 
-        body.theme-dark .auth-page > div {
+        body.theme-dark .auth-page>div {
             background-color: var(--surface);
         }
 
@@ -231,8 +231,7 @@
 <body x-data="{ darkMode: localStorage.getItem('foodstore-theme') === 'dark' }"
     x-init="$watch('darkMode', value => { localStorage.setItem('foodstore-theme', value ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', value); document.body.classList.toggle('theme-dark', value); }); document.documentElement.classList.toggle('dark', darkMode); document.body.classList.toggle('theme-dark', darkMode)"
     :class="darkMode ? 'theme-dark' : ''">
-    <nav x-data="{ open: false }"
-        :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
+    <nav x-data="{ open: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
         class="site-nav transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
             <div class="flex justify-between items-center h-16">
@@ -240,139 +239,144 @@
                 <div class="flex-shrink-0 flex items-center gap-3">
                     <a href="{{ route('home') }}" class="flex items-center gap-3" aria-label="FoodStore home">
                         <span class="brand-mark"><img src="{{ asset('asset/logo.png') }}" alt=""></span>
-                        <span class="leading-none"><strong class="block text-xl font-black tracking-tight text-yellow-500">FoodStore</strong><small class="hidden text-[10px] font-bold uppercase tracking-[.16em] text-gray-400 sm:block">Fresh • Fast • Local</small></span>
+                        <span class="leading-none"><strong
+                                class="block text-xl font-black tracking-tight text-yellow-500">FoodStore</strong><small
+                                class="hidden text-[10px] font-bold uppercase tracking-[.16em] text-gray-400 sm:block">Fresh
+                                • Fast • Local</small></span>
                     </a>
                 </div>
 
                 <div class="ml-auto flex items-center gap-3">
-                <!-- Desktop Menu -->
-                <div class="hidden xl:flex items-center gap-1">
-                    @auth
-                        <a href="{{ route('home') }}" class="nav-link">Home</a>
+                    <!-- Desktop Menu -->
+                    <div class="hidden xl:flex items-center gap-1">
+                        @auth
+                            <a href="{{ route('home') }}" class="nav-link">Home</a>
 
-                        <!-- Cart with Badge -->
-                        @php
-                            $cartItems = session()->get('cart', []);
-                            $cartCount = count($cartItems);
-                        @endphp
-                        <div class="relative">
-                            <a href="{{ route('cart') }}" class="nav-link">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                                Cart
-                            </a>
-                            @if($cartCount > 0)
-                                <span
-                                    class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $cartCount }}</span>
-                            @endif
-                        </div>
-
-                        <a href="{{ route('about') }}" class="nav-link">About</a>
-                    @endauth
-
-                    @guest
-                        <a href="{{ route('home') }}" class="nav-link">Home</a>
-                        <a href="{{ route('register') }}" class="nav-link">Register</a>
-                        <a href="{{ route('login') }}" class="nav-pill bg-yellow-500 text-white hover:bg-yellow-600">Sign in</a>
-                    @endguest
-
-                    <!-- Shop Owner Dashboard -->
-                    @php
-                        $userStore = \App\Models\Store::where('user_id', Auth::id())->first();
-                        $userRider = \App\Models\Rider::where('user_id', Auth::id())->first();
-                    @endphp
-                    @if($userStore && $userStore->status === 'approved')
-                        <a href="{{ route('storedashboard') }}"
-                            :class="darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'"
-                            class="nav-pill bg-orange-500 text-white hover:bg-orange-600 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
-                            </svg>
-                            Store
-                        </a>
-                    @endif
-
-                    <!-- Rider Dashboard -->
-                    @if($userRider && $userRider->status === 'approved')
-                        <a href="{{ route('rider.dashboard') }}"
-                            :class="darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'"
-                            class="nav-pill bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm11 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
-                            </svg>
-                            Rider
-                        </a>
-                    @endif
-
-                    <!-- Admin Panel -->
-                    @if(Auth::check() && Auth::user()->usertype === 'admin')
-                        <a href="{{ route('admin.dashboard') }}"
-                            class="nav-pill bg-purple-600 hover:bg-purple-700 text-white">Admin</a>
-                    @endif
-
-                    <!-- Dashboard Dropdown -->
-                    @auth
-                        <div class="relative group">
-                            <button class="nav-link">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M3 13h2v8H3zm4-8h2v16H7zm4-2h2v18h-2zm4-2h2v20h-2zm4 4h2v16h-2z" />
-                                </svg>
-                                Dashboard
-                            </button>
-                            <div
-                                class="absolute right-0 mt-0 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-20 hidden group-hover:block">
-                                <a href="{{ route('dashboard') }}"
-                                    class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">My
-                                    Dashboard</a>
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit"
-                                        class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-b-lg text-sm">Logout</button>
-                                </form>
+                            <!-- Cart with Badge -->
+                            @php
+                                $cartItems = session()->get('cart', []);
+                                $cartCount = count($cartItems);
+                            @endphp
+                            <div class="relative">
+                                <a href="{{ route('cart') }}" class="nav-link">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    Cart
+                                </a>
+                                @if($cartCount > 0)
+                                    <span
+                                        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $cartCount }}</span>
+                                @endif
                             </div>
-                        </div>
-                    @endauth
-                </div>
 
-                <!-- Right Side Icons -->
-                <div class="flex items-center gap-2">
-                    <!-- Dark/Light Mode Button -->
-                    <button @click="darkMode = !darkMode" class="theme-toggle transition"
-                        :class="darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-yellow-100 text-yellow-600'" title="Toggle light and dark mode" aria-label="Toggle light and dark mode">
-                        <span x-show="!darkMode"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71m16.97 0l-.71-.71M4.05 19.95l-.71-.71M21 12h1M3 12H2" />
-                            </svg></span>
-                        <span x-show="darkMode"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                            </svg></span>
-                    </button>
+                            <a href="{{ route('about') }}" class="nav-link">About</a>
+                        @endauth
 
-                    <!-- Mobile Menu Button -->
-                    <button @click="open = !open" :aria-expanded="open.toString()" aria-label="Toggle navigation menu"
-                        class="xl:hidden p-2 rounded transition"
-                        :class="darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'">
-                        <svg :class="open ? 'hidden' : 'block'" class="w-6 h-6" fill="none" stroke="currentColor"
-                            stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                        <svg :class="open ? 'block' : 'hidden'" class="w-6 h-6" fill="none" stroke="currentColor"
-                            stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                        @guest
+                            <a href="{{ route('home') }}" class="nav-link">Home</a>
+                            <a href="{{ route('register') }}" class="nav-link">Register</a>
+                            <a href="{{ route('login') }}"
+                                class="nav-pill bg-yellow-500 text-white hover:bg-yellow-600">Sign in</a>
+                        @endguest
+
+                        <!-- Shop Owner Dashboard -->
+                        @php
+                            $userStore = \App\Models\Store::where('user_id', Auth::id())->first();
+                            $userRider = \App\Models\Rider::where('user_id', Auth::id())->first();
+                        @endphp
+                        @if($userStore && $userStore->status === 'approved')
+                            <a href="{{ route('storedashboard') }}"
+                                :class="darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'"
+                                class="nav-pill bg-orange-500 text-white hover:bg-orange-600 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+                                </svg>
+                                Store
+                            </a>
+                        @endif
+
+                        <!-- Rider Dashboard -->
+                        @if($userRider && $userRider->status === 'approved')
+                            <a href="{{ route('rider.dashboard') }}"
+                                :class="darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'"
+                                class="nav-pill bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm11 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+                                </svg>
+                                Rider
+                            </a>
+                        @endif
+
+                        <!-- Admin Panel -->
+                        @if(Auth::check() && Auth::user()->usertype === 'admin')
+                            <a href="{{ route('admin.dashboard') }}"
+                                class="nav-pill bg-purple-600 hover:bg-purple-700 text-white">Admin</a>
+                        @endif
+
+                        <!-- Dashboard Dropdown -->
+                        @auth
+                            <div class="relative group">
+                                <button class="nav-link">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M3 13h2v8H3zm4-8h2v16H7zm4-2h2v18h-2zm4-2h2v20h-2zm4 4h2v16h-2z" />
+                                    </svg>
+                                    Dashboard
+                                </button>
+                                <div
+                                    class="absolute right-0 mt-0 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-20 hidden group-hover:block">
+                                    <a href="{{ route('dashboard') }}"
+                                        class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">My
+                                        Dashboard</a>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit"
+                                            class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-b-lg text-sm">Logout</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endauth
+                    </div>
+
+                    <!-- Right Side Icons -->
+                    <div class="flex items-center gap-2">
+                        <!-- Dark/Light Mode Button -->
+                        <button @click="darkMode = !darkMode" class="theme-toggle transition"
+                            :class="darkMode ? 'bg-gray-700 text-yellow-400' : 'bg-yellow-100 text-yellow-600'"
+                            title="Toggle light and dark mode" aria-label="Toggle light and dark mode">
+                            <span x-show="!darkMode"><svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                    stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71m16.97 0l-.71-.71M4.05 19.95l-.71-.71M21 12h1M3 12H2" />
+                                </svg></span>
+                            <span x-show="darkMode"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                </svg></span>
+                        </button>
+
+                        <!-- Mobile Menu Button -->
+                        <button @click="open = !open" :aria-expanded="open.toString()"
+                            aria-label="Toggle navigation menu" class="xl:hidden p-2 rounded transition"
+                            :class="darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'">
+                            <svg :class="open ? 'hidden' : 'block'" class="w-6 h-6" fill="none" stroke="currentColor"
+                                stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            <svg :class="open ? 'block' : 'hidden'" class="w-6 h-6" fill="none" stroke="currentColor"
+                                stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Mobile Menu -->
-        <div x-show="open" @click.outside="open = false"
-            class="mobile-menu xl:hidden transition-all">
+        <div x-show="open" @click.outside="open = false" class="mobile-menu xl:hidden transition-all">
             <div class="max-w-7xl mx-auto px-4 py-4 space-y-1 sm:px-6">
                 @auth
                     <a href="{{ route('home') }}" class="mobile-link">Home</a>
@@ -383,7 +387,8 @@
                         $cartCount = count($cartItems);
                     @endphp
                     <a href="{{ route('cart') }}" class="mobile-link justify-between">
-                        <span>Cart</span> @if($cartCount > 0)<span class="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{{ $cartCount }}</span>@endif
+                        <span>Cart</span> @if($cartCount > 0)<span
+                        class="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{{ $cartCount }}</span>@endif
                     </a>
 
                     <a href="{{ route('about') }}" class="mobile-link">About</a>
@@ -412,8 +417,8 @@
 
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit"
-                            class="mobile-link w-full text-left text-red-600 dark:text-red-400">Log out</button>
+                        <button type="submit" class="mobile-link w-full text-left text-red-600 dark:text-red-400">Log
+                            out</button>
                     </form>
                 @endauth
 
