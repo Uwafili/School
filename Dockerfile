@@ -38,4 +38,4 @@ RUN chmod -R 777 storage bootstrap/cache
 EXPOSE 10000
 
 # Start Laravel
-CMD php artisan optimize:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+CMD php artisan optimize:clear && php artisan migrate --force && php artisan config:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
