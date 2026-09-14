@@ -8,7 +8,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
                 <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
                     <span class="text-2xl font-bold text-yellow-600"> Total Users {{ $userCount }}</span>
-                    <span class="text-gray-700 mt-2"><a href="{{route('manage')}}">Manage users</a></span>
+                    <span class="text-gray-700 mt-2"><a href="{{ route('manage.index') }}">Manage users</a></span>
 
 
 
