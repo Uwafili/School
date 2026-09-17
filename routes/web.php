@@ -144,8 +144,9 @@ Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth')
 Route::get('/session-test', function () {
     session(['test' => 'hello']);
 
-    return [
+    return response()->json([
         'session_id' => session()->getId(),
         'session_value' => session('test'),
-    ];
+        'cookies' => request()->cookies->all(),
+    ]);
 });
