@@ -139,9 +139,7 @@ Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth')
 
 
 
-
-
-Route::get('/session-test', function () {
+Route::middleware('web')->get('/session-test', function () {
     session(['test' => 'hello']);
 
     return response()->json([
