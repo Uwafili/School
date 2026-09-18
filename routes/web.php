@@ -139,12 +139,17 @@ Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth')
 
 
 
-Route::middleware('web')->get('/session-test', function () {
-    session(['test' => 'hello']);
-
-    return response()->json([
-        'session_id' => session()->getId(),
-        'session_value' => session('test'),
-        'cookies' => request()->cookies->all(),
-    ]);
+Route::get('/cookie-test', function () {
+    return response('cookie test')
+        ->withCookie(cookie(
+            'test_cookie',
+            'hello',
+            60,
+            '/',
+            null,
+            true,
+            true,
+            false,
+            'lax'
+        ));
 });
