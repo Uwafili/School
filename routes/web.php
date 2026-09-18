@@ -139,11 +139,12 @@ Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth')
 
 
 
+
 Route::get('/cookie-test', function () {
-    return response('cookie test')
+    $response = response('cookie test')
         ->withCookie(cookie(
             'test_cookie',
-            'hello',
+            '123',
             60,
             '/',
             null,
@@ -152,4 +153,10 @@ Route::get('/cookie-test', function () {
             false,
             'lax'
         ));
+
+    dd($response->headers->all());
+
+    return $response;
 });
+
+
