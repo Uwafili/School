@@ -77,6 +77,38 @@
                 <div id="customerMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50 sm:h-80"></div>
             </section>
 
+            @if($orders->isNotEmpty())
+                <section class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
+                    <div class="mb-5 flex items-end justify-between gap-4">
+                        <div><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Track your food</p><h2 class="mt-1 text-xl font-black text-gray-900">Active orders</h2></div>
+                        <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">{{ $orders->count() }} open</span>
+                    </div>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        @foreach($orders as $order)
+                            <article class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div><p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Order #{{ $order->id }}</p><h3 class="mt-1 text-sm font-black text-gray-900">{{ $order->store->stores ?? 'FoodStore order' }}</h3></div>
+                                    <span class="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-700">{{ ucfirst($order->status) }}</span>
+                                </div>
+                                <div class="mt-4 flex items-center justify-between gap-3 border-t border-gray-200 pt-3"><div><p class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Recipient code</p><p class="mt-1 text-2xl font-black tracking-[.3em] text-purple-700">{{ $order->recipient_code ?? '----' }}</p></div><p class="max-w-36 text-right text-[11px] leading-4 text-gray-500">Show this code to your rider to confirm delivery.</p></div>
+                            </article>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
+            @if($orders->where('status', 'completed')->isNotEmpty())
+                <section class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
+                    <div class="mb-5"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Share your experience</p><h2 class="mt-1 text-xl font-black text-gray-900">Rate your completed orders</h2></div>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        @foreach($orders->where('status', 'completed') as $order)
+                            @php $existingRating = $ratings->get($order->id); @endphp
+                            <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4"><div class="flex items-center justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Order #{{ $order->id }}</p><p class="mt-1 text-sm font-black text-gray-800">{{ $order->store->stores ?? 'FoodStore store' }}</p></div><span class="text-xs font-bold text-green-600">Delivered</span></div>@if($existingRating)<p class="mt-3 text-sm font-black text-yellow-600">{{ str_repeat('★', $existingRating->rating) }}{{ str_repeat('☆', 5 - $existingRating->rating) }} <span class="ml-1 text-xs text-gray-500">Your rating</span></p>@else<form action="{{ route('order.rating', $order) }}" method="POST" class="mt-4">@csrf<div class="flex items-center gap-2"><select name="rating" required class="rounded-xl border-gray-200 bg-white px-3 py-2 text-sm font-bold text-yellow-600 focus:border-yellow-500 focus:ring-yellow-300"><option value="">Stars</option><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select><input name="review" maxlength="500" placeholder="Optional review" class="min-w-0 flex-1 rounded-xl border-gray-200 px-3 py-2 text-xs focus:border-yellow-500 focus:ring-yellow-300"><button type="submit" class="rounded-xl bg-gray-900 px-3 py-2 text-xs font-black text-white hover:bg-yellow-500 hover:text-gray-900">Rate</button></div></form>@endif</div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
             <section id="food-feed" class="mb-8">
                 <div class="mb-4 flex items-end justify-between">
                     <div>
@@ -178,5 +210,24 @@
         @foreach($riders as $rider)
             L.circleMarker([{{ $rider->latitude }}, {{ $rider->longitude }}], { color: '#7c3aed', radius: 8 }).addTo(customerMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
         @endforeach
+
+        const assignedRiderMarkers = {};
+        function refreshAssignedRiders() {
+            fetch('{{ route('dashboard.live-riders') }}', { headers: { 'Accept': 'application/json' } })
+                .then(response => response.json())
+                .then(orders => orders.forEach(order => {
+                    if (!order.latitude || !order.longitude) return;
+                    const coordinates = [order.latitude, order.longitude];
+                    if (!assignedRiderMarkers[order.order_id]) {
+                        assignedRiderMarkers[order.order_id] = L.marker(coordinates).addTo(customerMap);
+                    } else {
+                        assignedRiderMarkers[order.order_id].setLatLng(coordinates);
+                    }
+                    assignedRiderMarkers[order.order_id].bindPopup(`Your rider for order #${order.order_id}: ${order.name}<br>Status: ${order.status}`);
+                }))
+                .catch(() => {});
+        }
+        refreshAssignedRiders();
+        setInterval(refreshAssignedRiders, 15000);
     </script>
 @endsection

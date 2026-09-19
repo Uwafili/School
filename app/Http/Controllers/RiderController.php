@@ -83,11 +83,18 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review. Please check back later.');
         }
 
-        $orders = \App\Models\Order::where('rider_id', $Rider->id)
+        $orders = \App\Models\Order::where(function ($query) use ($Rider) {
+                $query->where('rider_id', $Rider->id)
+                    ->orWhere(function ($open) {
+                        $open->whereNull('rider_id')
+                            ->where('status', 'pending')
+                            ->where('payment_status', 'paid');
+                    });
+            })
             ->with('store')
             ->latest()
             ->get();
-        $assignedCount = $orders->where('status', 'assigned')->count();
+            $assignedCount = $orders->filter(fn ($order) => $order->status === 'assigned' || ($order->status === 'pending' && $order->rider_id === null))->count();
         $activeCount = $orders->whereIn('status', ['accepted'])->count();
         $completedCount = $orders->where('status', 'completed')->count();
 
@@ -110,7 +117,10 @@ class RiderController extends Controller
         if ($order->status !== 'accepted') {
             return back()->with('error', 'Accept the order before confirming pickup.');
         }
-        $order->update(['notes' => trim(($order->notes ? $order->notes . "\n" : '') . 'Picked up by rider at ' . now()->toDateTimeString())]);
+        $order->update([
+            'picked_up_at' => now(),
+            'notes' => trim(($order->notes ? $order->notes . "\n" : '') . 'Picked up by rider at ' . now()->toDateTimeString()),
+        ]);
 
         return back()->with('success', 'Pickup confirmed. Take the order to the customer.');
     }
@@ -263,17 +273,25 @@ class RiderController extends Controller
 
         $order = \App\Models\Order::findOrFail($orderId);
 
-        // Verify the order is assigned to this rider
-        if ($order->rider_id !== $rider->id) {
-            return redirect()->back()->with('error', 'This order is not assigned to you.');
+        if (!$rider->is_online) {
+            return redirect()->back()->with('error', 'Go online before accepting delivery jobs.');
         }
 
-        // Only accept orders that are in "assigned" status
-        if ($order->status !== 'assigned') {
-            return redirect()->back()->with('error', 'You can only accept orders that are in assigned status.');
-        }
+        if ($order->rider_id === null && $order->status === 'pending' && $order->payment_status === 'paid') {
+            $claimed = \App\Models\Order::whereKey($order->id)
+                ->whereNull('rider_id')
+                ->where('status', 'pending')
+                ->where('payment_status', 'paid')
+                ->update(['rider_id' => $rider->id, 'status' => 'accepted']);
 
-        $order->update(['status' => 'accepted']);
+            if (!$claimed) {
+                return redirect()->back()->with('error', 'Another rider already picked up this job.');
+            }
+        } elseif ($order->rider_id === $rider->id && $order->status === 'assigned') {
+            $order->update(['status' => 'accepted']);
+        } else {
+            return redirect()->back()->with('error', 'This delivery is no longer available.');
+        }
 
         // Update notification
         \App\Models\Notification::where('order_id', $order->id)

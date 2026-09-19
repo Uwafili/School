@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Post;
+use App\Models\Store;
 
 use Illuminate\Http\Request;
 
@@ -14,12 +15,14 @@ class CartController extends Controller
             $cart[$id]['quantity']++;
 
          }  else{
+              $store = Store::where('user_id', $posts->user_id)->where('status', 'approved')->first();
                 $cart[$id]=[
                     'title'=>$posts->title,
                      "price" => $posts->price,
                       "quantity" => 1,
                       "image" => $posts->image,
                       "category" => $posts->category,
+                      "store_id" => $store?->id,
                 ];
          }  
          session()->put('cart', $cart);                    

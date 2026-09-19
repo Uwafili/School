@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Store;
+use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -115,9 +116,10 @@ class PaymentController extends Controller
                 'method' => 'wallet',
                 'confirmed_at' => now()->toDateTimeString(),
             ]);
+            $this->createPaidOrders($request, $payment, 'wallet');
             $request->session()->forget(['cart', 'pending_payment']);
 
-            return redirect()->route('bank')->with('success', 'Wallet payment completed successfully.');
+            return redirect()->route('dashboard')->with('success', 'Wallet payment completed successfully.');
         }
 
         $validated = $request->validate([
@@ -132,9 +134,49 @@ class PaymentController extends Controller
             'method' => 'bank transfer',
             'confirmed_at' => now()->toDateTimeString(),
         ]);
+        $this->createPaidOrders($request, $payment, 'bank transfer');
         $request->session()->forget(['cart', 'pending_payment']);
 
-        return redirect()->route('bank')->with('success', 'Payment confirmation received. We will verify your transfer shortly.');
+        return redirect()->route('dashboard')->with('success', 'Payment confirmation received. We will verify your transfer shortly.');
+    }
+
+    private function createPaidOrders(Request $request, array $payment, string $method): void
+    {
+        $cart = $request->session()->get('cart', []);
+        if (empty($cart)) {
+            return;
+        }
+
+        $fallbackStore = Store::where('status', 'approved')->first();
+        $groups = collect($cart)->groupBy(fn ($item) => $item['store_id'] ?? $fallbackStore?->id);
+        $groupCount = max(1, $groups->count());
+
+        foreach ($groups as $storeId => $items) {
+            $store = Store::find($storeId) ?? $fallbackStore;
+            if (!$store) {
+                continue;
+            }
+
+            $itemsTotal = $items->sum(fn ($item) => $item['price'] * $item['quantity']);
+            $deliveryFee = (float) ($payment['delivery_fee'] ?? 0) / $groupCount;
+            $description = $items->map(fn ($item) => $item['title'] . ' x' . $item['quantity'])->implode(', ');
+
+            Order::create([
+                'store_id' => $store->id,
+                'customer_id' => Auth::id(),
+                'customer_name' => Auth::user()->name,
+                'customer_phone' => Auth::user()->phone ?? 'Not provided',
+                'customer_address' => $payment['delivery_method'] === 'pickup'
+                    ? ($payment['pickup_station'] ?? 'Pickup station')
+                    : ($payment['delivery_address'] ?? 'Location not provided'),
+                'total_price' => $itemsTotal + $deliveryFee,
+                'items_description' => $description,
+                'status' => 'pending',
+                'payment_status' => 'paid',
+                'payment_method' => $method,
+                'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
+            ]);
+        }
     }
 
 

@@ -22,6 +22,9 @@ class Order extends Model
         'notes',
         'recipient_code',
         'recipient_verified_at',
+        'payment_status',
+        'payment_method',
+        'picked_up_at',
     ];
 
     /**
@@ -49,6 +52,7 @@ class Order extends Model
     {
         return [
             'recipient_verified_at' => 'datetime',
+            'picked_up_at' => 'datetime',
         ];
     }
 }

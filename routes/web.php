@@ -16,6 +16,7 @@ use App\Http\Controllers\GoogleAuthController;
 Route::middleware('auth')->group(function(){
     Route::post('/navigation-role', [AuthController::class, 'switchNavigationRole'])->name('navigation.role');
     Route::post('/location', [\App\Http\Controllers\LocationController::class, 'update'])->name('location.update');
+    Route::post('/orders/{order}/rating', [\App\Http\Controllers\StoreRatingController::class, 'store'])->name('order.rating');
     Route::post('/store/{store}/location', [\App\Http\Controllers\LocationController::class, 'store'])->name('store.location');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
@@ -23,6 +24,7 @@ Route::middleware('auth')->group(function(){
     
     // Only one dashboard route for users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/live-riders', [DashboardController::class, 'liveRiderLocations'])->name('dashboard.live-riders');
     Route::get('/profile/edit', [AuthController::class, 'editProfile'])->name('profile.edit');
     Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
 

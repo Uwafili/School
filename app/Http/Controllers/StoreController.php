@@ -93,11 +93,13 @@ class StoreController extends Controller
         $storeIds = $stores->pluck('id');
         
         // Total orders
-        $totalOrders = \App\Models\Order::whereIn('store_id', $storeIds)->count();
+        $totalOrders = \App\Models\Order::whereIn('store_id', $storeIds)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->count();
         
-        // Total revenue (sum of completed/assigned orders)
+        // Revenue is earned only after delivery is completed.
         $totalRevenue = \App\Models\Order::whereIn('store_id', $storeIds)
-            ->whereIn('status', ['accepted', 'completed'])
+            ->where('status', 'completed')
             ->sum('total_price');
         
         // Week's orders and revenue
@@ -106,7 +108,7 @@ class StoreController extends Controller
             ->count();
         
         $weekRevenue = \App\Models\Order::whereIn('store_id', $storeIds)
-            ->whereIn('status', ['accepted', 'completed'])
+            ->where('status', 'completed')
             ->where('created_at', '>=', now()->subDays(7))
             ->sum('total_price');
         
@@ -130,6 +132,10 @@ class StoreController extends Controller
             ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
+
+        $ratingStats = \App\Models\StoreRating::whereIn('store_id', $storeIds)
+            ->selectRaw('COALESCE(AVG(rating), 0) as average, COUNT(*) as count')
+            ->first();
         
         return view('enroll.storedashboard', [
             'stores' => $stores,
@@ -143,6 +149,8 @@ class StoreController extends Controller
             'activeRiders' => $activeRiders,
             'recentOrders' => $recentOrders,
             'riderResponses' => $riderResponses,
+            'averageRating' => (float) ($ratingStats->average ?? 0),
+            'ratingCount' => (int) ($ratingStats->count ?? 0),
         ]);
     }
 

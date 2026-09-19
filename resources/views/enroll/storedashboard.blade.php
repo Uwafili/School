@@ -95,8 +95,9 @@
                     </div>
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-blue-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">⭐ STORE RATING</p>
-                        <p class="text-3xl font-bold text-blue-600">4.8/5</p>
-                        <p class="text-xs text-gray-500 mt-2">Based on {{ $totalOrders }} orders</p>
+                        <p class="text-3xl font-bold text-blue-600">{{ number_format($averageRating, 1) }}/5</p>
+                        <p class="mt-1 text-lg tracking-wide text-yellow-500">{{ str_repeat('★', (int) round($averageRating)) }}{{ str_repeat('☆', 5 - (int) round($averageRating)) }}</p>
+                        <p class="text-xs text-gray-500 mt-2">Based on {{ $ratingCount }} customer ratings</p>
                     </div>
                     <div class="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition border-t-4 border-purple-500 ring-1 ring-gray-100">
                         <p class="text-gray-600 text-sm font-semibold mb-2">🚴 ACTIVE RIDERS</p>
