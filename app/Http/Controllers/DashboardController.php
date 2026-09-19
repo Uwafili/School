@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Order;
+use App\Models\Store;
+use App\Models\Rider;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -23,7 +25,18 @@ class DashboardController extends Controller
          ->latest()
          ->get();
 
-      return view('users.dashboard', compact('posts', 'orders'));
+      $stores = Store::whereNotNull('latitude')
+         ->whereNotNull('longitude')
+         ->where('status', 'approved')
+         ->get(['id', 'stores', 'latitude', 'longitude']);
+      $riders = Rider::with('user')
+         ->where('status', 'approved')
+         ->where('is_online', true)
+         ->whereNotNull('latitude')
+         ->whereNotNull('longitude')
+         ->get();
+
+      return view('users.dashboard', compact('posts', 'orders', 'stores', 'riders'));
    }
 
 }

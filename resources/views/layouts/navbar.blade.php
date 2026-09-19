@@ -735,6 +735,31 @@
     </style>
 
     <script>
+        @auth
+        (function () {
+            const locationKey = 'foodstore-location-updated';
+            const lastUpdated = Number(localStorage.getItem(locationKey) || 0);
+            if (!navigator.geolocation || Date.now() - lastUpdated < 1800000) return;
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                fetch('{{ route('location.update') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    }),
+                }).then(function (response) {
+                    if (response.ok) localStorage.setItem(locationKey, Date.now().toString());
+                });
+            }, function () {});
+        }());
+        @endauth
+
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('page-loader').style.opacity = '1';
         });

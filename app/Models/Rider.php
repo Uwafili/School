@@ -20,6 +20,9 @@ class Rider extends Model
         'image',
         'status',
         'is_online',
+        'latitude',
+        'longitude',
+        'location_updated_at',
     ];
       public function user()
             {

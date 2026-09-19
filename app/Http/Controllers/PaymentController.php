@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -10,21 +11,34 @@ class PaymentController extends Controller
 {
     public function checkout(Request $request)
     {
+        $cart = $request->session()->get('cart', []);
+        $subtotal = collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
+        $deliveryFee = $this->deliveryFee(Auth::user()?->latitude, Auth::user()?->longitude);
+
         return view('check.checkout', [
-            'amount' => $request->amount
+            'amount' => $subtotal + $deliveryFee,
+            'subtotal' => $subtotal,
+            'deliveryFee' => $deliveryFee,
         ]);
     }
 
     public function pay(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric',
+            'amount' => 'required|numeric|min:0',
             'delivery_method' => 'required',
         ]);
 
+        $deliveryFee = $request->delivery_method === 'pickup'
+            ? 0
+            : $this->deliveryFee(Auth::user()?->latitude, Auth::user()?->longitude);
+        $subtotal = collect($request->session()->get('cart', []))->sum(fn ($item) => $item['price'] * $item['quantity']);
+
        
         $request->session()->put('pending_payment', [
-            'amount' => $request->amount,
+            'amount' => $subtotal + $deliveryFee,
+            'subtotal' => $subtotal,
+            'delivery_fee' => $deliveryFee,
             'delivery_method' => $request->delivery_method,
             'delivery_address' => $request->delivery_address,
             'pickup_station' => $request->pickup_station,
@@ -33,6 +47,35 @@ class PaymentController extends Controller
 
         return redirect()->route('bank');
         // return back()->with('success','Payment Successful');
+    }
+
+    private function deliveryFee(?float $latitude, ?float $longitude): float
+    {
+        if ($latitude === null || $longitude === null) {
+            return 500;
+        }
+
+        $nearestDistance = Store::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get(['latitude', 'longitude'])
+            ->map(fn ($store) => $this->distanceInKm($latitude, $longitude, (float) $store->latitude, (float) $store->longitude))
+            ->min();
+
+        if ($nearestDistance === null) {
+            return 500;
+        }
+
+        return min(2500, 300 + ($nearestDistance * 120));
+    }
+
+    private function distanceInKm(float $latitudeOne, float $longitudeOne, float $latitudeTwo, float $longitudeTwo): float
+    {
+        $earthRadius = 6371;
+        $latitudeDelta = deg2rad($latitudeTwo - $latitudeOne);
+        $longitudeDelta = deg2rad($longitudeTwo - $longitudeOne);
+        $a = sin($latitudeDelta / 2) ** 2 + cos(deg2rad($latitudeOne)) * cos(deg2rad($latitudeTwo)) * sin($longitudeDelta / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     public function bank(Request $request)

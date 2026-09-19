@@ -15,6 +15,8 @@ use App\Http\Controllers\GoogleAuthController;
 
 Route::middleware('auth')->group(function(){
     Route::post('/navigation-role', [AuthController::class, 'switchNavigationRole'])->name('navigation.role');
+    Route::post('/location', [\App\Http\Controllers\LocationController::class, 'update'])->name('location.update');
+    Route::post('/store/{store}/location', [\App\Http\Controllers\LocationController::class, 'store'])->name('store.location');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
     Route::view('/about', 'posts.about')->name('about');

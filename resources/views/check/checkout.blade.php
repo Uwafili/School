@@ -3,7 +3,9 @@
 @section('content')
 @php
     $cart = session('cart', []);
-    $grandTotal = collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
+    $subtotal = $subtotal ?? collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
+    $deliveryFee = $deliveryFee ?? 500;
+    $grandTotal = $amount ?? ($subtotal + $deliveryFee);
 @endphp
 
 <div class="checkout-page min-h-screen bg-[#edf8f5] px-3 py-6 sm:px-6 lg:px-8">
@@ -31,7 +33,7 @@
                 <section class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-7"><div class="mb-5"><p class="text-xs font-black uppercase tracking-widest text-teal-600">02</p><h2 class="mt-1 text-lg font-black text-gray-900">Payment method</h2></div><div class="space-y-3"><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input type="radio" name="payment_method" value="paystack" required class="text-teal-600"><span class="grid h-8 w-8 place-items-center rounded-lg bg-red-50 text-xs font-black text-red-500">●</span><span class="flex-1 text-sm font-bold text-gray-700">Paystack</span><span class="text-gray-300">○</span></label><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input type="radio" name="payment_method" value="flutterwave" class="text-teal-600"><span class="grid h-8 w-8 place-items-center rounded-lg bg-yellow-50 text-xs font-black text-yellow-600">G</span><span class="flex-1 text-sm font-bold text-gray-700">Flutterwave</span><span class="text-gray-300">○</span></label><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input type="radio" name="payment_method" value="cod" class="text-teal-600"><span class="grid h-8 w-8 place-items-center rounded-lg bg-gray-100 text-xs font-black text-gray-600">₦</span><span class="flex-1 text-sm font-bold text-gray-700">Cash on delivery</span><span class="text-gray-300">○</span></label></div></section>
             </div>
 
-            <aside class="h-fit rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-6 lg:sticky lg:top-24"><h2 class="mb-4 text-lg font-black text-gray-900">Order summary</h2><div class="space-y-3 border-b border-gray-100 pb-4">@forelse($cart as $item)<div class="flex justify-between gap-3 text-sm"><span class="min-w-0 truncate text-gray-600">{{ $item['title'] }} × {{ $item['quantity'] }}</span><span class="shrink-0 font-bold text-gray-800">₦{{ number_format($item['price'] * $item['quantity']) }}</span></div>@empty<p class="text-sm text-gray-500">Your cart is empty.</p>@endforelse</div><div class="mt-4 flex items-center justify-between"><span class="text-sm font-bold text-gray-500">Total</span><strong class="text-xl font-black text-teal-700">₦{{ number_format($grandTotal) }}</strong></div><button type="submit" class="mt-6 w-full rounded-2xl bg-teal-600 py-3.5 text-sm font-black text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50" @disabled(empty($cart))>Confirm payment</button><p class="mt-3 text-center text-[11px] leading-5 text-gray-400">Your payment details are handled securely.</p></aside>
+            <aside class="h-fit rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-6 lg:sticky lg:top-24"><h2 class="mb-4 text-lg font-black text-gray-900">Order summary</h2><div class="space-y-3 border-b border-gray-100 pb-4">@forelse($cart as $item)<div class="flex justify-between gap-3 text-sm"><span class="min-w-0 truncate text-gray-600">{{ $item['title'] }} × {{ $item['quantity'] }}</span><span class="shrink-0 font-bold text-gray-800">₦{{ number_format($item['price'] * $item['quantity']) }}</span></div>@empty<p class="text-sm text-gray-500">Your cart is empty.</p>@endforelse</div><div class="mt-4 space-y-2 text-sm"><div class="flex justify-between text-gray-500"><span>Subtotal</span><span>₦{{ number_format($subtotal) }}</span></div><div class="flex justify-between text-gray-500"><span>Delivery fee</span><span id="deliveryFeeText">₦{{ number_format($deliveryFee) }}</span></div></div><div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-4"><span class="text-sm font-bold text-gray-500">Total</span><strong id="grandTotalText" class="text-xl font-black text-teal-700">₦{{ number_format($grandTotal) }}</strong></div><button type="submit" class="mt-6 w-full rounded-2xl bg-teal-600 py-3.5 text-sm font-black text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50" @disabled(empty($cart))>Confirm payment</button><p class="mt-3 text-center text-[11px] leading-5 text-gray-400">Pickup has no delivery fee. Door delivery uses your location.</p></aside>
         </form>
     </div>
 </div>
@@ -80,8 +82,16 @@
         });
     }
 
-    deliveryRadio.addEventListener('change', () => { pickupBox.classList.add('hidden'); pickupLocation.value = ''; detectPosition('delivery'); });
-    pickupRadio.addEventListener('change', () => { pickupBox.classList.remove('hidden'); deliveryAddress.value = ''; detectPosition('pickup'); });
+    const deliveryFeeText = document.getElementById('deliveryFeeText');
+    const grandTotalText = document.getElementById('grandTotalText');
+    const subtotalValue = {{ $subtotal }};
+    function updateFee(isPickup) {
+        const fee = isPickup ? 0 : {{ $deliveryFee }};
+        deliveryFeeText.textContent = `₦${fee.toLocaleString()}`;
+        grandTotalText.textContent = `₦${(subtotalValue + fee).toLocaleString()}`;
+    }
+    deliveryRadio.addEventListener('change', () => { pickupBox.classList.add('hidden'); pickupLocation.value = ''; updateFee(false); detectPosition('delivery'); });
+    pickupRadio.addEventListener('change', () => { pickupBox.classList.remove('hidden'); deliveryAddress.value = ''; updateFee(true); detectPosition('pickup'); });
     document.getElementById('detectLocation').addEventListener('click', () => detectPosition(deliveryRadio.checked ? 'delivery' : 'pickup'));
 </script>
 @endsection

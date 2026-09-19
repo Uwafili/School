@@ -2,6 +2,7 @@
 @extends('layouts.navbar')
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <div class="min-h-screen bg-slate-50 py-6 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-2">
@@ -102,6 +103,12 @@
                         <p class="text-3xl font-bold text-purple-600">{{ count($riders) }}</p>
                         <p class="text-xs text-gray-500 mt-2">Online and ready now</p>
                     </div>
+                </div>
+
+                <!-- Manage Orders Section -->
+                <div class="bg-white rounded-3xl shadow-sm ring-1 ring-gray-100 p-6 mb-10">
+                    <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Delivery network</p><h2 class="mt-1 text-xl font-black text-gray-900">Riders near your store</h2><p class="mt-1 text-sm text-gray-500">Online riders with shared locations can be assigned from the order form below.</p></div>
+                    <div id="storeRiderMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50"></div>
                 </div>
 
                 <!-- Manage Orders Section -->
@@ -420,4 +427,17 @@
             @endempty
         </div>
     </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const storeLatitude = @json($stores->first()->latitude ?? null);
+        const storeLongitude = @json($stores->first()->longitude ?? null);
+        const storeRiderMap = L.map('storeRiderMap').setView([storeLatitude || 6.5244, storeLongitude || 3.3792], storeLatitude ? 12 : 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(storeRiderMap);
+        if (storeLatitude && storeLongitude) L.marker([storeLatitude, storeLongitude]).addTo(storeRiderMap).bindPopup('Your store');
+        @foreach($allRiders as $rider)
+            @if($rider->is_online && $rider->latitude && $rider->longitude)
+                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}]).addTo(storeRiderMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
+            @endif
+        @endforeach
+    </script>
 @endsection

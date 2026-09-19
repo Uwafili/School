@@ -1,6 +1,7 @@
 @extends('layouts.navbar')
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <div class="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
         <div class="mx-auto max-w-7xl">
             <div class="mb-5 flex items-center justify-between gap-4">
@@ -70,6 +71,11 @@
                     </div>
                 </section>
             </div>
+
+            <section class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
+                <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Live nearby</p><h2 class="mt-1 text-xl font-black text-gray-900">Food stores and riders around you</h2><p class="mt-1 text-sm text-gray-500">See registered stores and online delivery riders who have shared their current location.</p></div>
+                <div id="customerMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50 sm:h-80"></div>
+            </section>
 
             <section id="food-feed" class="mb-8">
                 <div class="mb-4 flex items-end justify-between">
@@ -159,4 +165,18 @@
             </section>
         </div>
     </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const customerMap = L.map('customerMap').setView([6.5244, 3.3792], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(customerMap);
+        const customerLatitude = @json(auth()->user()->latitude);
+        const customerLongitude = @json(auth()->user()->longitude);
+        if (customerLatitude && customerLongitude) L.marker([customerLatitude, customerLongitude]).addTo(customerMap).bindPopup('Your current location');
+        @foreach($stores as $store)
+            L.marker([{{ $store->latitude }}, {{ $store->longitude }}]).addTo(customerMap).bindPopup('Food store: {{ addslashes($store->stores) }}');
+        @endforeach
+        @foreach($riders as $rider)
+            L.circleMarker([{{ $rider->latitude }}, {{ $rider->longitude }}], { color: '#7c3aed', radius: 8 }).addTo(customerMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
+        @endforeach
+    </script>
 @endsection

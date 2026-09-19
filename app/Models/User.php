@@ -24,6 +24,9 @@ class User extends Authenticatable
         'password',
         'usertype', // Added usertype attribute
         'wallet_balance',
+        'latitude',
+        'longitude',
+        'location_updated_at',
     ];
 
     /**
@@ -46,6 +49,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'wallet_balance' => 'decimal:2',
+            'location_updated_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

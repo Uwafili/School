@@ -18,7 +18,9 @@ class Store extends Model
         'phone',
         'address', 
         'image',
-        'status'
+        'status',
+        'latitude',
+        'longitude',
     ];
     protected $table = 'stores';
 
