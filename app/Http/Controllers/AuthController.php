@@ -41,6 +41,17 @@ class AuthController extends Controller
          if(Auth::attempt($field,$request->remember)){
                $request->session()->regenerate();
 
+               $signedInUser = Auth::user();
+               $activeRole = 'user';
+               if ($signedInUser->usertype === 'admin') {
+                  $activeRole = 'admin';
+               } elseif (Rider::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()) {
+                  $activeRole = 'rider';
+               } elseif (Store::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()) {
+                  $activeRole = 'store';
+               }
+               $request->session()->put('active_role', $activeRole);
+
                $destination = Auth::user()->usertype === 'admin'
                   ? route('admin.dashboard')
                   : route('dashboard');

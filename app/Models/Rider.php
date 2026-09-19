@@ -19,6 +19,7 @@ class Rider extends Model
         'vehicle',
         'image',
         'status',
+        'is_online',
     ];
       public function user()
             {

@@ -83,7 +83,48 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review. Please check back later.');
         }
 
-        return view('enroll.ridersdashboard', compact('Rider'));
+        $orders = \App\Models\Order::where('rider_id', $Rider->id)
+            ->with('store')
+            ->latest()
+            ->get();
+        $assignedCount = $orders->where('status', 'assigned')->count();
+        $activeCount = $orders->whereIn('status', ['accepted'])->count();
+        $completedCount = $orders->where('status', 'completed')->count();
+
+        return view('enroll.ridersdashboard', compact('Rider', 'orders', 'assignedCount', 'activeCount', 'completedCount'));
+    }
+
+    public function toggleAvailability(Request $request)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider->update(['is_online' => $request->boolean('is_online')]);
+
+        return back()->with('success', $rider->is_online ? 'You are now online and can receive jobs.' : 'You are now offline.');
+    }
+
+    public function confirmPickup($orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $order = \App\Models\Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
+
+        abort_unless($order->status === 'accepted', 422, 'Accept the order before confirming pickup.');
+        $order->update(['notes' => trim(($order->notes ? $order->notes . "\n" : '') . 'Picked up by rider at ' . now()->toDateTimeString())]);
+
+        return back()->with('success', 'Pickup confirmed. Take the order to the customer.');
+    }
+
+    public function confirmDelivery(Request $request, $orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $order = \App\Models\Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
+        $request->validate(['recipient_code' => ['required', 'digits:4']]);
+
+        abort_unless($order->status === 'accepted', 422, 'This order is not ready for delivery confirmation.');
+        abort_unless($order->recipient_code && hash_equals((string) $order->recipient_code, (string) $request->recipient_code), 422, 'The recipient code is incorrect. Ask the customer to show the code from their order.');
+
+        $order->update(['status' => 'completed', 'recipient_verified_at' => now()]);
+
+        return back()->with('success', 'Delivery confirmed. Recipient verified successfully.');
     }
 
     /**

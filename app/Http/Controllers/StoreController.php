@@ -87,6 +87,7 @@ class StoreController extends Controller
         
         // Get approved riders
         $riders = \App\Models\Rider::where('status', 'approved')->get();
+        $onlineRiders = $riders->where('is_online', true);
         
         // Calculate statistics
         $storeIds = $stores->pluck('id');
@@ -133,7 +134,8 @@ class StoreController extends Controller
         return view('enroll.storedashboard', [
             'stores' => $stores,
             'orders' => $orders,
-            'riders' => $riders,
+            'riders' => $onlineRiders,
+            'allRiders' => $riders,
             'totalOrders' => $totalOrders,
             'totalRevenue' => $totalRevenue,
             'weekOrders' => $weekOrders,
@@ -245,14 +247,24 @@ class StoreController extends Controller
         }
 
         // Update the order with rider and status
+        $rider = \App\Models\Rider::where('id', $validated['rider_id'])
+            ->where('status', 'approved')
+            ->where('is_online', true)
+            ->first();
+
+        if (!$rider) {
+            return redirect()->back()->with('error', 'Choose an approved rider who is currently online.');
+        }
+
         $order->update([
-            'rider_id' => $validated['rider_id'],
+            'rider_id' => $rider->id,
             'status' => 'assigned',
+            'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
         ]);
 
         // Create notification for rider
         \App\Models\Notification::create([
-            'rider_id' => $validated['rider_id'],
+            'rider_id' => $rider->id,
             'order_id' => $order->id,
             'title' => '📦 New Order Assigned',
             'message' => "You have been assigned a new delivery order #{$order->id} from {$store->stores}. Customer: {$order->customer_name}, Address: {$order->customer_address}, Amount: ₦{$order->total_price}",

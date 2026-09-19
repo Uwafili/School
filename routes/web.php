@@ -35,12 +35,11 @@ Route::middleware('auth')->group(function(){
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
     
-    Route::view('/checkout', 'check.checkout')->name('checkout');
-    
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
     Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
 
-    Route::view('/bank',('check.bank'))->name('bank');
+    Route::get('/bank', [PaymentController::class, 'bank'])->name('bank');
+    Route::post('/bank/confirm', [PaymentController::class, 'confirmBankTransfer'])->name('bank.confirm');
 
 
 Route::any('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');
@@ -71,6 +70,9 @@ Route::post('/rider/notification/{notificationId}/read', [RiderController::class
 Route::get('/rider/assigned-orders', [RiderController::class, 'assignedOrders'])->name('rider.assigned-orders');
 Route::post('/rider/order/{orderId}/accept', [RiderController::class, 'acceptOrder'])->name('order.accept');
 Route::post('/rider/order/{orderId}/reject', [RiderController::class, 'rejectOrder'])->name('order.reject');
+Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'])->name('rider.availability');
+Route::post('/rider/order/{orderId}/pickup', [RiderController::class, 'confirmPickup'])->name('rider.pickup');
+Route::post('/rider/order/{orderId}/deliver', [RiderController::class, 'confirmDelivery'])->name('rider.deliver');
 Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount'])->name('notification.unread-count');
 
 

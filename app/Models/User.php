@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'usertype', // Added usertype attribute
+        'wallet_balance',
     ];
 
     /**
@@ -44,6 +45,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'wallet_balance' => 'decimal:2',
             'password' => 'hashed',
         ];
     }

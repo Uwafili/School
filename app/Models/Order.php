@@ -20,6 +20,8 @@ class Order extends Model
         'items_description',
         'status',
         'notes',
+        'recipient_code',
+        'recipient_verified_at',
     ];
 
     /**
@@ -41,5 +43,12 @@ class Order extends Model
     public function customer()
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'recipient_verified_at' => 'datetime',
+        ];
     }
 }

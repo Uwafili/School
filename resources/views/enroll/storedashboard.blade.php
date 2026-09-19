@@ -2,16 +2,16 @@
 @extends('layouts.navbar')
 
 @section('content')
-    <div class="min-h-screen bg-yellow-50 py-10 px-4">
+    <div class="min-h-screen bg-slate-50 py-6 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-2">
-                <h1 class="text-4xl font-bold text-yellow-600">🏪 Store Dashboard</h1>
+                <div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">FoodStore partner center</p><h1 class="mt-1 text-3xl font-black text-gray-900">Store dashboard</h1></div>
                 <a href="{{ route('store.info') }}"
                     class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition shadow-md">
                     📋 View Store Info
                 </a>
             </div>
-            <p class="text-center text-gray-600 mb-8">Manage your store, orders, and riders</p>
+            <p class="text-left text-gray-500 mb-8">Manage your store, orders, and delivery handoffs from one connected workspace.</p>
             @if (session('success'))
                 <div class="mb-6 p-4 rounded-lg bg-green-50 text-green-800 border-l-4 border-green-500">
                     <strong>✓ Success:</strong> {{ session('success') }}
@@ -97,10 +97,10 @@
                         <p class="text-3xl font-bold text-blue-600">4.8/5</p>
                         <p class="text-xs text-gray-500 mt-2">Based on {{ $totalOrders }} orders</p>
                     </div>
-                    <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-purple-500">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 hover:shadow-lg transition border-t-4 border-purple-500 ring-1 ring-gray-100">
                         <p class="text-gray-600 text-sm font-semibold mb-2">🚴 ACTIVE RIDERS</p>
                         <p class="text-3xl font-bold text-purple-600">{{ count($riders) }}</p>
-                        <p class="text-xs text-gray-500 mt-2">Available for delivery</p>
+                        <p class="text-xs text-gray-500 mt-2">Online and ready now</p>
                     </div>
                 </div>
 

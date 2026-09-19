@@ -303,6 +303,19 @@
                 background: #404040;
             }
 
+            .phone-dashboard-menu {
+                position: fixed;
+                right: .75rem;
+                bottom: 5.25rem;
+                left: .75rem;
+                z-index: 60;
+                overflow: hidden;
+                border: 1px solid var(--border);
+                border-radius: 1rem;
+                background: var(--surface);
+                box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+            }
+
             body.theme-dark .phone-nav-link:hover,
             body.theme-dark .phone-nav-link:focus-visible {
                 color: #fde68a;
@@ -346,7 +359,7 @@
 <body x-data="{ darkMode: localStorage.getItem('foodstore-theme') === 'dark' }"
     x-init="$watch('darkMode', value => { localStorage.setItem('foodstore-theme', value ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', value); document.body.classList.toggle('theme-dark', value); }); document.documentElement.classList.toggle('dark', darkMode); document.body.classList.toggle('theme-dark', darkMode)"
     :class="darkMode ? 'theme-dark' : ''">
-    <nav x-data="{ open: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
+    <nav x-data="{ open: false, dashboardMenu: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
         class="site-nav transition-colors duration-300">
         @php
             $isAdmin = Auth::check() && Auth::user()->usertype === 'admin';
@@ -636,7 +649,7 @@
             </div>
         </div>
 
-        <nav class="phone-bottom-nav" aria-label="Mobile navigation">
+        <nav x-data="{ dashboardMenu: false }" class="phone-bottom-nav" aria-label="Mobile navigation">
             @if($customerNav)
             <a href="{{ route('home') }}" class="phone-nav-link" aria-label="Home">
                 <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
@@ -664,29 +677,37 @@
                 </svg>
                 <span>About</span>
             </a>
-            @else
-                <a href="{{ $activeRole === 'rider' ? route('rider.dashboard') : route('storedashboard') }}" class="phone-nav-link" aria-label="Open dashboard">
-                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-13h6V4h-6v3Z" /></svg>
-                    <span>{{ $activeRole === 'rider' ? 'Rider' : 'Store' }}</span>
-                </a>
-                <form method="POST" action="{{ route('navigation.role') }}" class="contents">
-                    @csrf
-                    <input type="hidden" name="role" value="user">
-                    <button type="submit" class="phone-nav-link" aria-label="Switch to user view">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4m-3-5 3-3m0 0-3-3m3 3H3" /></svg>
-                        <span>User view</span>
-                    </button>
-                </form>
             @endif
             @auth
-                @if($customerNav)
-                <a href="{{ route('dashboard') }}" class="phone-nav-link" aria-label="Dashboard">
+                <button type="button" @click="dashboardMenu = !dashboardMenu" class="phone-nav-link" aria-label="Open dashboard menu" :aria-expanded="dashboardMenu.toString()">
                     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-13h6V4h-6v3Z" />
                     </svg>
                     <span>Dashboard</span>
-                </a>
-                @endif
+                </button>
+                <div x-show="dashboardMenu" @click.outside="dashboardMenu = false" class="phone-dashboard-menu" x-transition>
+                    @if($isAdmin)
+                        <a href="{{ route('admin.dashboard') }}" class="mobile-link border-b border-gray-100 text-purple-700 dark:border-gray-700 dark:text-purple-300">Admin Panel</a>
+                        <a href="{{ route('dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">My Dashboard</a>
+                    @elseif($activeRole === 'rider')
+                        <a href="{{ route('rider.dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">Rider Dashboard</a>
+                        <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="user"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left text-yellow-700 dark:border-gray-700 dark:text-yellow-300">Switch to User View</button></form>
+                    @elseif($activeRole === 'store')
+                        <a href="{{ route('storedashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">Store Dashboard</a>
+                        <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="user"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left text-yellow-700 dark:border-gray-700 dark:text-yellow-300">Switch to User View</button></form>
+                    @else
+                        <a href="{{ route('dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">My Dashboard</a>
+                        @if($userRider)
+                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left dark:border-gray-700">Rider View</button></form>
+                        @elseif($userStore)
+                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left dark:border-gray-700">Store View</button></form>
+                        @endif
+                    @endif
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="mobile-link w-full text-left text-red-600 dark:text-red-400">Log out</button>
+                    </form>
+                </div>
             @else
                 <a href="{{ route('login') }}" class="phone-nav-link" aria-label="Login">
                     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
