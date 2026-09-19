@@ -14,12 +14,18 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\GoogleAuthController;
 
 Route::middleware('auth')->group(function(){
+    Route::post('/navigation-role', [AuthController::class, 'switchNavigationRole'])->name('navigation.role');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
     Route::view('/about', 'posts.about')->name('about');
     
     // Only one dashboard route for users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/profile/edit', [AuthController::class, 'editProfile'])->name('profile.edit');
+    Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
+
+    Route::get('/orders/{order}/chat/{user}', [MessageController::class, 'chat'])->name('chat.show');
+    Route::post('/orders/{order}/chat', [MessageController::class, 'send'])->name('chat.send');
     
     // Store Routes
     Route::get('/store-create', [StoreController::class, 'create'])->name('store.create');
@@ -42,7 +48,7 @@ Route::any('/salad', [FoodController::class, 'salad'])->name('food.salad');
 Route::any('/burger', [FoodController::class, 'burger'])->name('food.burger'); 
 Route::any('/drinks', [FoodController::class, 'drinks'])->name('food.drinks');
 
-Route::any('/food/view', [FoodController::class, 'view'])->name('food.view');
+Route::get('/food/view/{post}', [FoodController::class, 'view'])->name('food.view');
 
 
 Route::post('/cart/add/{id}', [CartController::class, 'addToCart'])->name('add.cart');
@@ -92,6 +98,8 @@ Route::middleware('guest')->group(function(){
 Route::middleware(['auth', 'admin'])->group(function(){
     Route::get('admin/dashboard', [AuthController::class, 'adminDashboard'])->name('admin.dashboard');
     Route::POST('admin/Post', [PostController::class, 'store'])->name('posts.store');
+    Route::get('/admin/Post/{post}/edit', [PostController::class, 'edit'])->name('posts.edit');
+    Route::put('/admin/Post/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/admin/Post/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     
     Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage.index');
@@ -125,13 +133,6 @@ Route::middleware(['auth', 'admin'])->group(function(){
 
 
 
-
-
-    // Send message (admin or user)
-Route::post('/send-message', [MessageController::class, 'send'])->middleware('auth');
-
-// View chat (admin or user)
-Route::get('/chat/{id}', [MessageController::class, 'chat'])->middleware('auth');
 
 
 });

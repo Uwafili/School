@@ -12,6 +12,7 @@ class Order extends Model
     protected $fillable = [
         'store_id',
         'rider_id',
+        'customer_id',
         'customer_name',
         'customer_phone',
         'customer_address',
@@ -35,5 +36,10 @@ class Order extends Model
     public function rider()
     {
         return $this->belongsTo(Rider::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(User::class, 'customer_id');
     }
 }

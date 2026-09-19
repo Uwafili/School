@@ -10,11 +10,6 @@ use Illuminate\Support\Facades\Gate;
   
 
 
-use Illuminate\Support\Facades\User;
-
-
-
-
 class PostController extends Controller
 {
     /**
@@ -51,7 +46,8 @@ class PostController extends Controller
           $path=Storage::disk('public')->put('out_imges',$request->file('image'));
         }
          
-        Auth::user()->Post()->create([
+          Post::create([
+              'user_id' => Auth::id(),
            'title'=>$request->title,
            'description'=>$request->description,
            'price'=>$request->price,
@@ -59,7 +55,7 @@ class PostController extends Controller
            'image'=>$path,
 
         ]);
-        return back()->with('success','post created successfully.', 'post');
+        return back()->with('success', 'Post created successfully.');
 
     }
 
@@ -76,7 +72,9 @@ class PostController extends Controller
      */
     public function edit(Post $post)
     {
-        //
+        Gate::authorize('modify', $post);
+
+        return view('admin.posts.edit', compact('post'));
     }
 
     /**
@@ -84,7 +82,27 @@ class PostController extends Controller
      */
     public function update(Request $request, Post $post)
     {
-        //
+        Gate::authorize('modify', $post);
+
+        $validated = $request->validate([
+            'title' => ['required', 'max:255'],
+            'description' => ['required', 'max:255'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'category' => ['required', 'in:pizza,burger,salad,drinks'],
+            'image' => ['file', 'max:3000', 'mimes:jpeg,jpg,png,avif', 'nullable'],
+        ]);
+
+        if ($request->hasFile('image')) {
+            if ($post->image) {
+                Storage::disk('public')->delete($post->image);
+            }
+
+            $validated['image'] = Storage::disk('public')->put('out_imges', $request->file('image'));
+        }
+
+        $post->update($validated);
+
+        return redirect()->route('admin.dashboard')->with('success', 'Post updated successfully.');
     }
 
     /**

@@ -210,6 +210,121 @@
             border-radius: 9999px;
         }
 
+        .phone-bottom-nav {
+            display: none;
+        }
+
+        @media (max-width: 639px) {
+            .mobile-menu-trigger,
+            .mobile-menu {
+                display: none !important;
+            }
+
+            .food-category-menu {
+                position: static !important;
+                inset: auto !important;
+            }
+
+            .food-category-menu > .relative > button {
+                display: none;
+            }
+
+            .food-category-menu > .relative > div {
+                position: fixed;
+                right: .75rem;
+                bottom: 5.25rem;
+                z-index: 51;
+                width: 14rem;
+                margin-top: 0;
+            }
+
+            .phone-bottom-nav {
+                position: fixed;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 50;
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                align-items: end;
+                min-height: 4.5rem;
+                padding: .55rem .35rem calc(.55rem + env(safe-area-inset-bottom));
+                border-top: 1px solid var(--border);
+                background: rgba(255, 255, 255, .96);
+                box-shadow: 0 -8px 24px rgba(15, 23, 42, .1);
+                backdrop-filter: blur(18px);
+            }
+
+            body.theme-dark .phone-bottom-nav {
+                background: rgba(17, 24, 39, .96);
+            }
+
+            .phone-nav-link {
+                display: flex;
+                min-width: 0;
+                min-height: 3.35rem;
+                align-items: center;
+                justify-content: center;
+                gap: .18rem;
+                flex-direction: column;
+                border-radius: .8rem;
+                color: var(--text-muted);
+                font-size: .64rem;
+                font-weight: 700;
+                line-height: 1;
+                transition: color .2s ease, background-color .2s ease;
+            }
+
+            .phone-nav-link svg {
+                width: 1.35rem;
+                height: 1.35rem;
+            }
+
+            .phone-nav-link:hover,
+            .phone-nav-link:focus-visible {
+                color: #a16207;
+                background: #fef3c7;
+                outline: none;
+            }
+
+            .phone-nav-link.phone-nav-featured {
+                width: 3.35rem;
+                min-height: 3.35rem;
+                margin: 0 auto .35rem;
+                border-radius: 9999px;
+                color: #ffffff;
+                background: #171717;
+                box-shadow: 0 8px 18px rgba(15, 23, 42, .2);
+            }
+
+            .phone-nav-link.phone-nav-featured:hover,
+            .phone-nav-link.phone-nav-featured:focus-visible {
+                color: #ffffff;
+                background: #404040;
+            }
+
+            body.theme-dark .phone-nav-link:hover,
+            body.theme-dark .phone-nav-link:focus-visible {
+                color: #fde68a;
+                background: #374151;
+            }
+
+            body.theme-dark .phone-nav-link.phone-nav-featured {
+                color: #111827;
+                background: #facc15;
+            }
+
+            body.theme-dark .phone-nav-link.phone-nav-featured:hover,
+            body.theme-dark .phone-nav-link.phone-nav-featured:focus-visible {
+                color: #111827;
+                background: #fde047;
+            }
+
+            body {
+                padding-bottom: 5.25rem;
+            }
+        }
+
         @keyframes fadeInOut {
 
             0%,
@@ -233,6 +348,19 @@
     :class="darkMode ? 'theme-dark' : ''">
     <nav x-data="{ open: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
         class="site-nav transition-colors duration-300">
+        @php
+            $isAdmin = Auth::check() && Auth::user()->usertype === 'admin';
+            $userStore = Auth::check() ? \App\Models\Store::where('user_id', Auth::id())->where('status', 'approved')->first() : null;
+            $userRider = Auth::check() ? \App\Models\Rider::where('user_id', Auth::id())->where('status', 'approved')->first() : null;
+            $activeRole = $isAdmin ? 'admin' : session('active_role', 'user');
+            if (! $isAdmin && $activeRole === 'rider' && ! $userRider) {
+                $activeRole = 'user';
+            }
+            if (! $isAdmin && $activeRole === 'store' && ! $userStore) {
+                $activeRole = 'user';
+            }
+            $customerNav = $isAdmin || $activeRole === 'user';
+        @endphp
         <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo -->
@@ -250,6 +378,7 @@
                     <!-- Desktop Menu -->
                     <div class="hidden xl:flex items-center gap-1">
                         @auth
+                            @if($customerNav)
                             <a href="{{ route('home') }}" class="nav-link">Home</a>
 
                             <!-- Cart with Badge -->
@@ -273,6 +402,7 @@
                             </div>
 
                             <a href="{{ route('about') }}" class="nav-link">About</a>
+                            @endif
                         @endauth
 
                         @guest
@@ -283,11 +413,7 @@
                         @endguest
 
                         <!-- Shop Owner Dashboard -->
-                        @php
-                            $userStore = \App\Models\Store::where('user_id', Auth::id())->first();
-                            $userRider = \App\Models\Rider::where('user_id', Auth::id())->first();
-                        @endphp
-                        @if($userStore && $userStore->status === 'approved')
+                        @if($userStore && ($isAdmin || $activeRole === 'user' || $activeRole === 'store'))
                             <a href="{{ route('storedashboard') }}"
                                 :class="darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'"
                                 class="nav-pill bg-orange-500 text-white hover:bg-orange-600 flex items-center gap-1">
@@ -299,7 +425,7 @@
                         @endif
 
                         <!-- Rider Dashboard -->
-                        @if($userRider && $userRider->status === 'approved')
+                        @if($userRider && ($isAdmin || $activeRole === 'user' || $activeRole === 'rider'))
                             <a href="{{ route('rider.dashboard') }}"
                                 :class="darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'"
                                 class="nav-pill bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1">
@@ -312,7 +438,7 @@
                         @endif
 
                         <!-- Admin Panel -->
-                        @if(Auth::check() && Auth::user()->usertype === 'admin')
+                        @if($isAdmin)
                             <a href="{{ route('admin.dashboard') }}"
                                 class="nav-pill bg-purple-600 hover:bg-purple-700 text-white">Admin</a>
                         @endif
@@ -328,9 +454,28 @@
                                 </button>
                                 <div
                                     class="absolute right-0 mt-0 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg z-20 hidden group-hover:block">
+                                    @if($customerNav)
                                     <a href="{{ route('dashboard') }}"
                                         class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">My
                                         Dashboard</a>
+                                    @elseif($activeRole === 'rider')
+                                    <a href="{{ route('rider.dashboard') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">Rider Dashboard</a>
+                                    @else
+                                    <a href="{{ route('storedashboard') }}" class="block px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 rounded-t-lg text-sm">Store Dashboard</a>
+                                    @endif
+                                    @if(!$isAdmin && $activeRole !== 'user')
+                                        <form method="POST" action="{{ route('navigation.role') }}">
+                                            @csrf
+                                            <input type="hidden" name="role" value="user">
+                                            <button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">Switch to User View</button>
+                                        </form>
+                                    @elseif(!$isAdmin && $activeRole === 'user')
+                                        @if($userRider)
+                                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">Rider View</button></form>
+                                        @elseif($userStore)
+                                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">Store View</button></form>
+                                        @endif
+                                    @endif
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
                                         <button type="submit"
@@ -359,7 +504,7 @@
 
                         <!-- Mobile Menu Button -->
                         <button @click="open = !open" :aria-expanded="open.toString()"
-                            aria-label="Toggle navigation menu" class="xl:hidden p-2 rounded transition"
+                            aria-label="Toggle navigation menu" class="mobile-menu-trigger xl:hidden p-2 rounded transition"
                             :class="darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'">
                             <svg :class="open ? 'hidden' : 'block'" class="w-6 h-6" fill="none" stroke="currentColor"
                                 stroke-width="2" viewBox="0 0 24 24">
@@ -379,6 +524,7 @@
         <div x-show="open" @click.outside="open = false" class="mobile-menu xl:hidden transition-all">
             <div class="max-w-7xl mx-auto px-4 py-4 space-y-1 sm:px-6">
                 @auth
+                    @if($customerNav)
                     <a href="{{ route('home') }}" class="mobile-link">Home</a>
 
                     <!-- Mobile Cart -->
@@ -392,28 +538,49 @@
                     </a>
 
                     <a href="{{ route('about') }}" class="mobile-link">About</a>
+                    @endif
 
                     <!-- Mobile Store Dashboard -->
-                    @if($userStore && $userStore->status === 'approved')
+                    @if($userStore && ($isAdmin || $activeRole === 'user' || $activeRole === 'store'))
                         <a href="{{ route('storedashboard') }}"
                             class="mobile-link bg-orange-500 text-white hover:bg-orange-600">Store Dashboard</a>
                     @endif
 
                     <!-- Mobile Rider Dashboard -->
-                    @if($userRider && $userRider->status === 'approved')
+                    @if($userRider && ($isAdmin || $activeRole === 'user' || $activeRole === 'rider'))
                         <a href="{{ route('rider.dashboard') }}"
                             class="mobile-link bg-blue-500 text-white hover:bg-blue-600">Rider Dashboard</a>
                     @endif
 
                     <!-- Mobile Admin Panel -->
-                    @if(Auth::user()->usertype === 'admin')
+                    @if($isAdmin)
                         <a href="{{ route('admin.dashboard') }}"
                             class="mobile-link bg-purple-600 text-white hover:bg-purple-700">Admin Panel</a>
                     @endif
 
+                    @if(!$isAdmin && $activeRole !== 'user')
+                        <form method="POST" action="{{ route('navigation.role') }}">
+                            @csrf
+                            <input type="hidden" name="role" value="user">
+                            <button type="submit" class="mobile-link w-full text-left text-yellow-700 dark:text-yellow-300">Switch to User View</button>
+                        </form>
+                    @elseif(!$isAdmin && $activeRole === 'user')
+                        @if($userRider)
+                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="mobile-link w-full text-left">Switch to Rider View</button></form>
+                        @elseif($userStore)
+                            <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="mobile-link w-full text-left">Switch to Store View</button></form>
+                        @endif
+                    @endif
+
                     <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
-                    <a href="{{ route('dashboard') }}" class="mobile-link">My Dashboard</a>
+                    @if($customerNav)
+                        <a href="{{ route('dashboard') }}" class="mobile-link">My Dashboard</a>
+                    @elseif($activeRole === 'rider')
+                        <a href="{{ route('rider.dashboard') }}" class="mobile-link">Rider Dashboard</a>
+                    @else
+                        <a href="{{ route('storedashboard') }}" class="mobile-link">Store Dashboard</a>
+                    @endif
 
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
@@ -439,7 +606,7 @@
     </div>
     <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
 
-    <div x-data="{ openFood: false }" class="fixed bottom-6 right-6 z-50">
+    <div x-data="{ openFood: false }" class="food-category-menu fixed bottom-6 right-6 z-50">
         <div class="relative">
             <button @click="openFood = !openFood"
                 class="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full shadow-lg p-4 flex items-center justify-center transition duration-300 focus:outline-none">
@@ -468,6 +635,67 @@
                 </a>
             </div>
         </div>
+
+        <nav class="phone-bottom-nav" aria-label="Mobile navigation">
+            @if($customerNav)
+            <a href="{{ route('home') }}" class="phone-nav-link" aria-label="Home">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" />
+                </svg>
+                <span>Home</span>
+            </a>
+            <a href="{{ route('cart') }}" class="phone-nav-link" aria-label="Cart">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l1.2 10.2a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 1.9-1.4L20 7H6M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm8 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+                </svg>
+                <span>Cart</span>
+            </a>
+            <button type="button" @click="openFood = !openFood" class="phone-nav-link phone-nav-featured" aria-label="Categories">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path stroke-linecap="round" d="m16.5 16.5 4 4" />
+                </svg>
+                <span>Categories</span>
+            </button>
+            <a href="{{ route('about') }}" class="phone-nav-link" aria-label="About">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path stroke-linecap="round" d="M12 10v6m0-9h.01" />
+                </svg>
+                <span>About</span>
+            </a>
+            @else
+                <a href="{{ $activeRole === 'rider' ? route('rider.dashboard') : route('storedashboard') }}" class="phone-nav-link" aria-label="Open dashboard">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-13h6V4h-6v3Z" /></svg>
+                    <span>{{ $activeRole === 'rider' ? 'Rider' : 'Store' }}</span>
+                </a>
+                <form method="POST" action="{{ route('navigation.role') }}" class="contents">
+                    @csrf
+                    <input type="hidden" name="role" value="user">
+                    <button type="submit" class="phone-nav-link" aria-label="Switch to user view">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4m-3-5 3-3m0 0-3-3m3 3H3" /></svg>
+                        <span>User view</span>
+                    </button>
+                </form>
+            @endif
+            @auth
+                @if($customerNav)
+                <a href="{{ route('dashboard') }}" class="phone-nav-link" aria-label="Dashboard">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-13h6V4h-6v3Z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                @endif
+            @else
+                <a href="{{ route('login') }}" class="phone-nav-link" aria-label="Login">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4m-3-5 3-3m0 0-3-3m3 3H3" />
+                    </svg>
+                    <span>Login</span>
+                </a>
+            @endauth
+        </nav>
     </div>
     <!-- Floating message icons (yellow) -->
 

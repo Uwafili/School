@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
 
 use App\Models\User;
 use App\Models\Rider;
+use App\Models\Store;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 
 class AuthController extends Controller
 {
@@ -52,13 +53,36 @@ class AuthController extends Controller
             ]);
          }
    }
+
+   public function switchNavigationRole(Request $request)
+   {
+      $role = $request->validate([
+         'role' => ['required', 'in:user,rider,store'],
+      ])['role'];
+
+      $user = Auth::user();
+
+      if ($user->usertype === 'admin') {
+         $request->session()->put('active_role', 'admin');
+      } elseif ($role === 'rider' && Rider::where('user_id', $user->id)->where('status', 'approved')->exists()) {
+         $request->session()->put('active_role', 'rider');
+      } elseif ($role === 'store' && Store::where('user_id', $user->id)->where('status', 'approved')->exists()) {
+         $request->session()->put('active_role', 'store');
+      } else {
+         $request->session()->put('active_role', 'user');
+      }
+
+      return back();
+   }
    
    public function adminDashboard(){
       if(Auth::check()&& Auth::user()->usertype=='admin'){
           $userCount = User::count();
           $posts=Post::latest()->get();
           $users = User::latest()->get();
-          return view('admin.dashboard', compact('userCount', 'posts', 'users'));
+          $storeCount = Store::count();
+          $riderCount = Rider::count();
+          return view('admin.dashboard', compact('userCount', 'posts', 'users', 'storeCount', 'riderCount'));
           
          
       }
@@ -115,6 +139,30 @@ public function Reject($id){
 
       return redirect()->route('home');
 
+   }
+
+   public function editProfile()
+   {
+      return view('users.profile-edit', ['user' => Auth::user()]);
+   }
+
+   public function updateProfile(Request $request)
+   {
+      $user = User::findOrFail(Auth::id());
+      $validated = $request->validate([
+         'name' => ['required', 'string', 'max:255'],
+         'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+         'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+      ]);
+
+      $user->name = $validated['name'];
+      $user->email = $validated['email'];
+      if (!empty($validated['password'])) {
+         $user->password = Hash::make($validated['password']);
+      }
+      $user->save();
+
+      return redirect()->route('dashboard')->with('success', 'Profile updated successfully.');
    }
 
 

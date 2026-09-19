@@ -210,6 +210,7 @@ class StoreController extends Controller
 
         \App\Models\Order::create([
             'store_id' => $store->id,
+            'customer_id' => Auth::id(),
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
             'customer_address' => $validated['customer_address'],

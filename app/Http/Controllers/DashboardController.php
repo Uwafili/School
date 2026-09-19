@@ -2,20 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-
 use App\Models\Post;
-
-
-use Illuminate\Http\Request;
+use App\Models\Order;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
    public function index(){
-    
-    $posts=Post::latest()->get();
-    return view('users.dashboard', ['posts'=>$posts]);
+
+      $posts=Post::with('user')->latest()->get();
+      $orders = Order::with(['store.user', 'rider.user'])
+         ->where(function ($query) {
+            $query->where('customer_id', Auth::id())
+               ->orWhere(function ($legacy) {
+                  $legacy->whereNull('customer_id')
+                     ->where('customer_name', Auth::user()->name);
+               });
+         })
+         ->whereNotIn('status', ['cancelled', 'rejected'])
+         ->latest()
+         ->get();
+
+      return view('users.dashboard', compact('posts', 'orders'));
    }
 
 }
