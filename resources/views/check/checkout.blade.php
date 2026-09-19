@@ -14,6 +14,9 @@
             <div><p class="text-xs font-black uppercase tracking-[.16em] text-teal-600">FoodStore checkout</p><h1 class="mt-1 text-2xl font-black text-gray-900 sm:text-3xl">Complete your order</h1></div>
             <a href="{{ route('cart') }}" class="rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-600 shadow-sm ring-1 ring-teal-100 transition hover:text-teal-700">Back to cart</a>
         </div>
+        @if(session('error'))
+            <div class="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{{ session('error') }}</div>
+        @endif
 
         <form id="checkoutForm" action="{{ route('payment.pay') }}" method="POST" class="grid gap-6 lg:grid-cols-[1fr_20rem]">
             @csrf

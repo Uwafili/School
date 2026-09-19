@@ -107,7 +107,9 @@ class RiderController extends Controller
         $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
         $order = \App\Models\Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
 
-        abort_unless($order->status === 'accepted', 422, 'Accept the order before confirming pickup.');
+        if ($order->status !== 'accepted') {
+            return back()->with('error', 'Accept the order before confirming pickup.');
+        }
         $order->update(['notes' => trim(($order->notes ? $order->notes . "\n" : '') . 'Picked up by rider at ' . now()->toDateTimeString())]);
 
         return back()->with('success', 'Pickup confirmed. Take the order to the customer.');
@@ -119,8 +121,12 @@ class RiderController extends Controller
         $order = \App\Models\Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
         $request->validate(['recipient_code' => ['required', 'digits:4']]);
 
-        abort_unless($order->status === 'accepted', 422, 'This order is not ready for delivery confirmation.');
-        abort_unless($order->recipient_code && hash_equals((string) $order->recipient_code, (string) $request->recipient_code), 422, 'The recipient code is incorrect. Ask the customer to show the code from their order.');
+        if ($order->status !== 'accepted') {
+            return back()->with('error', 'This order is not ready for delivery confirmation.');
+        }
+        if (!$order->recipient_code || !hash_equals((string) $order->recipient_code, (string) $request->recipient_code)) {
+            return back()->with('error', 'The recipient code is incorrect. Ask the customer to show the code from their order.');
+        }
 
         $order->update(['status' => 'completed', 'recipient_verified_at' => now()]);
 

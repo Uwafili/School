@@ -82,6 +82,10 @@ class PaymentController extends Controller
     {
         $payment = $request->session()->get('pending_payment', []);
 
+        if (empty($payment)) {
+            return redirect()->route('payment.checkout')->with('error', 'Start checkout before opening payment.');
+        }
+
         return view('check.bank', compact('payment'));
     }
 
@@ -89,7 +93,9 @@ class PaymentController extends Controller
     {
         $paymentMethod = $request->input('payment_method', 'bank');
         $payment = $request->session()->get('pending_payment');
-        abort_unless($payment, 422, 'No pending payment found.');
+        if (empty($payment)) {
+            return redirect()->route('payment.checkout')->with('error', 'Your checkout session expired. Please try again.');
+        }
 
         if ($paymentMethod === 'wallet') {
             $user = Auth::user();
