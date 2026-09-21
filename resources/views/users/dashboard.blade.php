@@ -201,14 +201,29 @@
     <script>
         const customerMap = L.map('customerMap').setView([6.5244, 3.3792], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(customerMap);
+
+        function yellowMarker(color = '#facc15') {
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<span style="display:block;width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #f59e0b;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+                popupAnchor: [0, -10]
+            });
+        }
+
         const customerLatitude = @json(auth()->user()->latitude);
         const customerLongitude = @json(auth()->user()->longitude);
-        if (customerLatitude && customerLongitude) L.marker([customerLatitude, customerLongitude]).addTo(customerMap).bindPopup('Your current location');
+        if (customerLatitude && customerLongitude) {
+            L.marker([customerLatitude, customerLongitude], { icon: L.divIcon({ className: 'custom-pin', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>', iconSize: [18,18], iconAnchor:[9,9], popupAnchor:[0,-10] }) }).addTo(customerMap).bindPopup('Your current location');
+        }
+
         @foreach($stores as $store)
-            L.marker([{{ $store->latitude }}, {{ $store->longitude }}]).addTo(customerMap).bindPopup('Food store: {{ addslashes($store->stores) }}');
+            L.marker([{{ $store->latitude }}, {{ $store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(customerMap).bindPopup('Food store: {{ addslashes($store->stores) }}');
         @endforeach
+
         @foreach($riders as $rider)
-            L.circleMarker([{{ $rider->latitude }}, {{ $rider->longitude }}], { color: '#7c3aed', radius: 8 }).addTo(customerMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
+            L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(customerMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
         @endforeach
 
         const assignedRiderMarkers = {};
@@ -219,7 +234,7 @@
                     if (!order.latitude || !order.longitude) return;
                     const coordinates = [order.latitude, order.longitude];
                     if (!assignedRiderMarkers[order.order_id]) {
-                        assignedRiderMarkers[order.order_id] = L.marker(coordinates).addTo(customerMap);
+                        assignedRiderMarkers[order.order_id] = L.marker(coordinates, { icon: yellowMarker('#f59e0b') }).addTo(customerMap);
                     } else {
                         assignedRiderMarkers[order.order_id].setLatLng(coordinates);
                     }

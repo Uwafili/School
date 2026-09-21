@@ -29,10 +29,24 @@
     const riderLongitude = @json($Rider->longitude);
     const riderMap = L.map('riderMap').setView([riderLatitude || 6.5244, riderLongitude || 3.3792], riderLatitude ? 12 : 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(riderMap);
-    if (riderLatitude && riderLongitude) L.marker([riderLatitude, riderLongitude]).addTo(riderMap).bindPopup('Your current location');
+
+    function yellowMarker(color = '#facc15') {
+        return L.divIcon({
+            className: 'custom-pin',
+            html: `<span style="display:block;width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #f59e0b;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+            popupAnchor: [0, -10]
+        });
+    }
+
+    if (riderLatitude && riderLongitude) {
+        L.marker([riderLatitude, riderLongitude], { icon: L.divIcon({ className: 'custom-pin', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>', iconSize: [18,18], iconAnchor:[9,9], popupAnchor:[0,-10] }) }).addTo(riderMap).bindPopup('Your current location');
+    }
+
     @foreach($orders as $order)
         @if($order->store && $order->store->latitude && $order->store->longitude)
-            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}]).addTo(riderMap).bindPopup('Pickup: {{ addslashes($order->store->stores) }}');
+            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap).bindPopup('Pickup: {{ addslashes($order->store->stores) }}');
         @endif
     @endforeach
 
