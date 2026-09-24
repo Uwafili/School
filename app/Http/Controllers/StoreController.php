@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Store;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 
 
@@ -86,8 +87,19 @@ class StoreController extends Controller
             ->get();
         
         // Get approved riders
-        $riders = \App\Models\Rider::where('status', 'approved')->get();
+        $riders = \App\Models\Rider::with('user')->where('status', 'approved')->get();
         $onlineRiders = $riders->where('is_online', true);
+        $store = $stores->first();
+        $nearbyRiders = $onlineRiders->filter(function ($rider) use ($store) {
+            if (!$store?->latitude || !$store?->longitude || !$rider->latitude || !$rider->longitude) {
+                return false;
+            }
+
+            $distance = $this->distanceInKilometres($store->latitude, $store->longitude, $rider->latitude, $rider->longitude);
+            $rider->distance_km = round($distance, 1);
+
+            return $distance <= 25;
+        })->sortBy('distance_km')->values();
         
         // Calculate statistics
         $storeIds = $stores->pluck('id');
@@ -120,7 +132,7 @@ class StoreController extends Controller
         
         // Recent orders (last 10)
         $recentOrders = \App\Models\Order::whereIn('store_id', $storeIds)
-            ->with('rider')
+            ->with(['rider.user', 'deliveryBids.rider.user'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -141,6 +153,7 @@ class StoreController extends Controller
             'stores' => $stores,
             'orders' => $orders,
             'riders' => $onlineRiders,
+            'nearbyRiders' => $nearbyRiders,
             'allRiders' => $riders,
             'totalOrders' => $totalOrders,
             'totalRevenue' => $totalRevenue,
@@ -152,6 +165,17 @@ class StoreController extends Controller
             'averageRating' => (float) ($ratingStats->average ?? 0),
             'ratingCount' => (int) ($ratingStats->count ?? 0),
         ]);
+    }
+
+    private function distanceInKilometres(float $latitudeOne, float $longitudeOne, float $latitudeTwo, float $longitudeTwo): float
+    {
+        $earthRadius = 6371;
+        $latitudeDelta = deg2rad($latitudeTwo - $latitudeOne);
+        $longitudeDelta = deg2rad($longitudeTwo - $longitudeOne);
+        $a = sin($latitudeDelta / 2) ** 2
+            + cos(deg2rad($latitudeOne)) * cos(deg2rad($latitudeTwo)) * sin($longitudeDelta / 2) ** 2;
+
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**
@@ -210,6 +234,7 @@ class StoreController extends Controller
             'customer_phone' => 'required|string|max:15',
             'customer_address' => 'required|string|max:255',
             'total_price' => 'required|numeric|min:0',
+            'delivery_fee' => 'required|numeric|min:0',
             'items_description' => 'required|string',
         ]);
 
@@ -225,6 +250,7 @@ class StoreController extends Controller
             'customer_phone' => $validated['customer_phone'],
             'customer_address' => $validated['customer_address'],
             'total_price' => $validated['total_price'],
+            'delivery_fee' => $validated['delivery_fee'],
             'items_description' => $validated['items_description'],
             'status' => 'pending',
         ]);
@@ -240,6 +266,7 @@ class StoreController extends Controller
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
             'rider_id' => 'required|exists:riders,id',
+            'delivery_fee' => 'nullable|numeric|min:0',
         ]);
 
         $store = Store::where('user_id', Auth::id())->first();
@@ -264,10 +291,18 @@ class StoreController extends Controller
             return redirect()->back()->with('error', 'Choose an approved rider who is currently online.');
         }
 
+        if ($rider->latitude && $rider->longitude && $store->latitude && $store->longitude
+            && $this->distanceInKilometres($store->latitude, $store->longitude, $rider->latitude, $rider->longitude) > 25) {
+            return redirect()->back()->with('error', 'Choose a rider within 25 km of your store.');
+        }
+
+        $deliveryFee = $validated['delivery_fee'] ?? $order->delivery_fee;
+
         $order->update([
             'rider_id' => $rider->id,
             'status' => 'assigned',
             'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
+            'delivery_fee' => $deliveryFee,
         ]);
 
         // Create notification for rider
@@ -275,11 +310,44 @@ class StoreController extends Controller
             'rider_id' => $rider->id,
             'order_id' => $order->id,
             'title' => '📦 New Order Assigned',
-            'message' => "You have been assigned a new delivery order #{$order->id} from {$store->stores}. Customer: {$order->customer_name}, Address: {$order->customer_address}, Amount: ₦{$order->total_price}",
+            'message' => "You have been assigned order #{$order->id} from {$store->stores}. Customer: {$order->customer_name}, Address: {$order->customer_address}, Delivery pay: ₦{$deliveryFee}",
             'type' => 'order_assigned',
         ]);
 
         return redirect()->route('storedashboard')->with('success', 'Order assigned to rider successfully! Rider notified.');
+    }
+
+    public function acceptBid(Request $request, $bidId)
+    {
+        $store = Store::where('user_id', Auth::id())->firstOrFail();
+        $bid = \App\Models\DeliveryBid::with(['order', 'rider'])->findOrFail($bidId);
+        $order = $bid->order;
+
+        abort_unless($order->store_id === $store->id, 403);
+        if ($bid->status !== 'pending' || $order->status !== 'pending' || $order->rider_id) {
+            return redirect()->back()->with('error', 'This bid is no longer available.');
+        }
+
+        DB::transaction(function () use ($bid, $order) {
+            $order->update([
+                'rider_id' => $bid->rider_id,
+                'delivery_fee' => $bid->amount,
+                'status' => 'assigned',
+                'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
+            ]);
+            $bid->update(['status' => 'accepted']);
+            $order->deliveryBids()->whereKeyNot($bid->id)->where('status', 'pending')->update(['status' => 'rejected']);
+        });
+
+        \App\Models\Notification::create([
+            'rider_id' => $bid->rider_id,
+            'order_id' => $order->id,
+            'title' => 'Delivery bid accepted',
+            'message' => "Your bid for order #{$order->id} was accepted. Delivery pay: ₦{$bid->amount}",
+            'type' => 'order_assigned',
+        ]);
+
+        return redirect()->route('storedashboard')->with('success', 'Rider bid accepted and order assigned.');
     }
 
     /**

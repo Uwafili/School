@@ -17,6 +17,7 @@ class Order extends Model
         'customer_phone',
         'customer_address',
         'total_price',
+        'delivery_fee',
         'items_description',
         'status',
         'notes',
@@ -48,11 +49,17 @@ class Order extends Model
         return $this->belongsTo(User::class, 'customer_id');
     }
 
+    public function deliveryBids()
+    {
+        return $this->hasMany(DeliveryBid::class);
+    }
+
     protected function casts(): array
     {
         return [
             'recipient_verified_at' => 'datetime',
             'picked_up_at' => 'datetime',
+            'delivery_fee' => 'decimal:2',
         ];
     }
 }

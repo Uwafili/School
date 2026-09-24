@@ -227,19 +227,104 @@
         @endforeach
 
         const assignedRiderMarkers = {};
+        const orderRoutes = {};
+        const orderDestinationMarkers = {};
+        const orderPickupMarkers = {};
+        let hasFittedTrackingBounds = false;
+
+        function destinationMarker() {
+            return L.divIcon({
+                className: 'custom-pin',
+                html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>',
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+                popupAnchor: [0, -10]
+            });
+        }
+
+        function drawOrderRoute(order) {
+            const pickup = order.pickup;
+            const destination = order.destination;
+            if (!destination?.latitude || !destination?.longitude) return;
+
+            const end = [parseFloat(destination.latitude), parseFloat(destination.longitude)];
+
+            if (pickup?.latitude && pickup?.longitude) {
+                const pickupCoordinates = [parseFloat(pickup.latitude), parseFloat(pickup.longitude)];
+                if (!orderPickupMarkers[order.order_id]) {
+                    orderPickupMarkers[order.order_id] = L.marker(pickupCoordinates, { icon: yellowMarker('#facc15') }).addTo(customerMap);
+                } else {
+                    orderPickupMarkers[order.order_id].setLatLng(pickupCoordinates);
+                }
+                orderPickupMarkers[order.order_id].bindPopup(`Order #${order.order_id} pickup: ${pickup.name}`);
+            }
+
+            if (!orderDestinationMarkers[order.order_id]) {
+                orderDestinationMarkers[order.order_id] = L.marker(end, { icon: destinationMarker() }).addTo(customerMap);
+            } else {
+                orderDestinationMarkers[order.order_id].setLatLng(end);
+            }
+            orderDestinationMarkers[order.order_id].bindPopup(`Order #${order.order_id} delivery location`);
+
+            const hasRiderLocation = order.latitude && order.longitude;
+            const start = hasRiderLocation
+                ? [parseFloat(order.latitude), parseFloat(order.longitude)]
+                : (pickup?.latitude && pickup?.longitude
+                    ? [parseFloat(pickup.latitude), parseFloat(pickup.longitude)]
+                    : null);
+            if (!start) return;
+
+            if (orderRoutes[order.order_id]) {
+                orderRoutes[order.order_id].setLatLngs([start, end]);
+            } else {
+                orderRoutes[order.order_id] = L.polyline([start, end], {
+                    color: '#f59e0b',
+                    weight: 5,
+                    opacity: 0.8,
+                    dashArray: '10 8'
+                }).addTo(customerMap);
+            }
+
+            fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`)
+                .then(response => response.json())
+                .then(route => {
+                    const coordinates = route.routes?.[0]?.geometry?.coordinates;
+                    if (coordinates?.length) {
+                        orderRoutes[order.order_id].setLatLngs(coordinates.map(([longitude, latitude]) => [latitude, longitude]));
+                    }
+                })
+                .catch(() => {});
+        }
+
         function refreshAssignedRiders() {
             fetch('{{ route('dashboard.live-riders') }}', { headers: { 'Accept': 'application/json' } })
                 .then(response => response.json())
-                .then(orders => orders.forEach(order => {
-                    if (!order.latitude || !order.longitude) return;
-                    const coordinates = [order.latitude, order.longitude];
-                    if (!assignedRiderMarkers[order.order_id]) {
-                        assignedRiderMarkers[order.order_id] = L.marker(coordinates, { icon: yellowMarker('#f59e0b') }).addTo(customerMap);
-                    } else {
-                        assignedRiderMarkers[order.order_id].setLatLng(coordinates);
+                .then(orders => {
+                    const trackingBounds = [];
+                    orders.forEach(order => {
+                        drawOrderRoute(order);
+                        if (order.pickup?.latitude && order.pickup?.longitude) {
+                            trackingBounds.push([parseFloat(order.pickup.latitude), parseFloat(order.pickup.longitude)]);
+                        }
+                        if (order.destination?.latitude && order.destination?.longitude) {
+                            trackingBounds.push([parseFloat(order.destination.latitude), parseFloat(order.destination.longitude)]);
+                        }
+                        if (order.latitude && order.longitude) {
+                            const coordinates = [parseFloat(order.latitude), parseFloat(order.longitude)];
+                            trackingBounds.push(coordinates);
+                            if (!assignedRiderMarkers[order.order_id]) {
+                                assignedRiderMarkers[order.order_id] = L.marker(coordinates, { icon: yellowMarker('#f59e0b') }).addTo(customerMap);
+                            } else {
+                                assignedRiderMarkers[order.order_id].setLatLng(coordinates);
+                            }
+                            assignedRiderMarkers[order.order_id].bindPopup(`Your rider for order #${order.order_id}: ${order.name}<br>Status: ${order.status}<br>Last update: ${order.updated_at ?? 'just now'}`);
+                        }
+                    });
+                    if (!hasFittedTrackingBounds && trackingBounds.length) {
+                        customerMap.fitBounds(trackingBounds, { padding: [24, 24], maxZoom: 14 });
+                        hasFittedTrackingBounds = true;
                     }
-                    assignedRiderMarkers[order.order_id].bindPopup(`Your rider for order #${order.order_id}: ${order.name}<br>Status: ${order.status}`);
-                }))
+                })
                 .catch(() => {});
         }
         refreshAssignedRiders();

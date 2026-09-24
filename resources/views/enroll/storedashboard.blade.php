@@ -139,6 +139,9 @@
                             <input type="number" name="total_price" placeholder="Order Total (₦)"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition"
                                 required>
+                            <input type="number" name="delivery_fee" min="0" step="0.01" placeholder="Delivery Fee / Rider Pay (₦)"
+                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition"
+                                required>
                             <textarea name="items_description" placeholder="Order Items Description" rows="3"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition resize-none"
                                 required></textarea>
@@ -174,12 +177,12 @@
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
                                 required>
                                 <option disabled selected class="text-gray-500">🚴 Select an Approved Rider</option>
-                                @forelse ($riders as $rider)
+                                @forelse ($nearbyRiders as $rider)
                                     <option value="{{ $rider->id }}">
-                                        👤 {{ $rider->user->name }} - {{ $rider->phone }}
+                                        👤 {{ $rider->user->name ?? $rider->name }} - {{ $rider->distance_km }} km away
                                     </option>
                                 @empty
-                                    <option disabled>No approved riders available</option>
+                                    <option disabled>No nearby riders with shared locations</option>
                                 @endforelse
                             </select>
 
@@ -188,6 +191,35 @@
                                 🎯 Assign to Rider
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">🚴 Delivery bids</h2>
+                    <div class="space-y-4">
+                        @forelse ($recentOrders->where('status', 'pending') as $order)
+                            <div class="rounded-xl border border-orange-200 bg-orange-50 p-5">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p class="font-bold text-gray-800">Order #{{ $order->id }} · {{ $order->customer_name }}</p>
+                                        <p class="text-sm text-gray-600">Order total: ₦{{ number_format($order->total_price, 2) }} · Posted delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</p>
+                                    </div>
+                                    <span class="text-sm font-bold text-orange-700">{{ $order->deliveryBids->where('status', 'pending')->count() }} bids</span>
+                                </div>
+                                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                    @forelse ($order->deliveryBids->where('status', 'pending') as $bid)
+                                        <div class="flex items-center justify-between gap-3 rounded-lg bg-white p-3">
+                                            <div><p class="font-bold text-gray-800">{{ $bid->rider->user->name ?? $bid->rider->name }}</p><p class="text-xs text-gray-500">₦{{ number_format($bid->amount, 2) }} delivery pay</p></div>
+                                            <form method="POST" action="{{ route('order.bid.accept', $bid->id) }}">@csrf<button class="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700">Accept bid</button></form>
+                                        </div>
+                                    @empty
+                                        <p class="text-sm text-gray-500">No bids yet. Nearby riders will see this order when it is paid.</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-gray-500">No open orders waiting for a rider.</p>
+                        @endforelse
                     </div>
                 </div>
 
@@ -449,9 +481,9 @@
             L.marker([storeLatitude, storeLongitude], { icon: yellowMarker('#facc15') }).addTo(storeRiderMap).bindPopup('Your store');
         }
 
-        @foreach($allRiders as $rider)
+        @foreach($nearbyRiders as $rider)
             @if($rider->is_online && $rider->latitude && $rider->longitude)
-                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(storeRiderMap).bindPopup('Online rider: {{ addslashes($rider->user->name ?? $rider->name) }}');
+                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(storeRiderMap).bindPopup('Nearby rider: {{ addslashes($rider->user->name ?? $rider->name) }}<br>Distance: {{ $rider->distance_km }} km');
             @endif
         @endforeach
     </script>

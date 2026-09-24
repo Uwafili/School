@@ -46,6 +46,34 @@
             </div>
         </div>
 
+        @if ($orders->where('status', 'pending')->count() > 0)
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">📍 Nearby open orders</h2>
+                <div class="space-y-4">
+                    @foreach ($orders->where('status', 'pending') as $order)
+                        <div class="rounded-lg border-l-4 border-blue-500 bg-blue-50 p-5">
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <p class="font-bold text-gray-800">Order #{{ $order->id }} · {{ $order->customer_name }}</p>
+                                    <p class="mt-1 text-sm text-gray-600">Pickup: {{ $order->store->stores ?? 'Store' }} · {{ $order->store->address ?? 'Location shared by store' }}</p>
+                                    <p class="text-sm text-gray-600">Drop-off: {{ $order->customer_address }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Order total: <strong>₦{{ number_format($order->total_price, 2) }}</strong></p>
+                                    <p class="text-lg font-bold text-green-700">Posted delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</p>
+                                    <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-3 flex items-end gap-2">
+                                        @csrf
+                                        <label class="flex-1 text-xs font-bold text-gray-700">Your bid (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->deliveryBids->first()->amount ?? $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-2 border-gray-200 px-3 py-2"></label>
+                                        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700">Bid</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <!-- Assigned Orders (Pending Action) -->
         @if ($orders->where('status', 'assigned')->count() > 0)
             <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
@@ -73,6 +101,9 @@
                                         <p class="text-gray-800">
                                             <span class="font-semibold">Delivery Address:</span> {{ $order->customer_address }}
                                         </p>
+                                        <p class="text-gray-800">
+                                            <span class="font-semibold">Pickup:</span> {{ $order->store->stores ?? 'Store' }} · {{ $order->store->address ?? 'Pickup location' }}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -88,10 +119,19 @@
                                             <p class="text-2xl font-bold text-yellow-600">
                                                 Total: ₦{{ number_format($order->total_price, 2) }}
                                             </p>
+                                            <p class="text-lg font-bold text-green-700">Delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            @if($order->status === 'pending' && !$order->rider_id)
+                                <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-5 flex flex-wrap items-end gap-3 border-t border-yellow-200 pt-5">
+                                    @csrf
+                                    <label class="flex-1 text-sm font-bold text-gray-700">Your delivery bid (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->deliveryBids->first()->amount ?? $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-2 border-gray-200 px-3 py-2"></label>
+                                    <button type="submit" class="rounded-lg bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700">Send bid</button>
+                                </form>
+                            @endif
 
                             <!-- Action Buttons -->
                             <div class="flex gap-4 mt-6 border-t border-yellow-200 pt-6">

@@ -170,6 +170,7 @@ class PaymentController extends Controller
                     ? ($payment['pickup_station'] ?? 'Pickup station')
                     : ($payment['delivery_address'] ?? 'Location not provided'),
                 'total_price' => $itemsTotal + $deliveryFee,
+                'delivery_fee' => $deliveryFee,
                 'items_description' => $description,
                 'status' => 'pending',
                 'payment_status' => 'paid',

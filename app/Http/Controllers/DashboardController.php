@@ -53,8 +53,10 @@ class DashboardController extends Controller
          ->where('status', 'accepted')
          ->whereNotNull('picked_up_at')
          ->whereNotNull('rider_id')
-         ->with('rider.user')
+         ->with(['rider.user', 'store'])
          ->get();
+
+      $customer = Auth::user();
 
       return response()->json($orders->map(fn ($order) => [
          'order_id' => $order->id,
@@ -63,6 +65,16 @@ class DashboardController extends Controller
          'latitude' => $order->rider?->latitude,
          'longitude' => $order->rider?->longitude,
          'updated_at' => $order->rider?->location_updated_at?->toIso8601String(),
+         'pickup' => [
+            'latitude' => $order->store?->latitude,
+            'longitude' => $order->store?->longitude,
+            'name' => $order->store?->stores ?? 'Pickup store',
+         ],
+         'destination' => [
+            'latitude' => $customer->latitude,
+            'longitude' => $customer->longitude,
+            'name' => 'Your delivery location',
+         ],
       ])->values());
    }
 

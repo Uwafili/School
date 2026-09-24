@@ -73,6 +73,7 @@ Route::get('/rider/notifications', [RiderController::class, 'notifications'])->n
 Route::post('/rider/notification/{notificationId}/read', [RiderController::class, 'markNotificationAsRead'])->name('notification.read');
 Route::get('/rider/assigned-orders', [RiderController::class, 'assignedOrders'])->name('rider.assigned-orders');
 Route::post('/rider/order/{orderId}/accept', [RiderController::class, 'acceptOrder'])->name('order.accept');
+Route::post('/rider/order/{orderId}/bid', [RiderController::class, 'placeBid'])->name('order.bid');
 Route::post('/rider/order/{orderId}/reject', [RiderController::class, 'rejectOrder'])->name('order.reject');
 Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'])->name('rider.availability');
 Route::post('/rider/order/{orderId}/pickup', [RiderController::class, 'confirmPickup'])->name('rider.pickup');
@@ -82,6 +83,7 @@ Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount']
 
 Route::post('/order/create', [StoreController::class, 'createOrder'])->name('order.create');
 Route::post('/order/assign', [StoreController::class, 'assignRider'])->name('order.assign');
+Route::post('/order/bid/{bidId}/accept', [StoreController::class, 'acceptBid'])->name('order.bid.accept');
 Route::get('/order/{orderId}/view', [StoreController::class, 'viewOrder'])->name('order.view');
 Route::post('/order/{orderId}/complete', [StoreController::class, 'completeOrder'])->name('order.complete');
 Route::post('/order/{orderId}/cancel', [StoreController::class, 'cancelOrder'])->name('order.cancel');
