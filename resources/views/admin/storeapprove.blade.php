@@ -109,6 +109,9 @@
 
                             <!-- Action Buttons -->
                             <div class="flex flex-col gap-2">
+                                <a href="{{ route('stores.edit', $store) }}" class="w-full rounded-lg bg-yellow-500 px-4 py-2 text-center font-bold text-white transition hover:bg-yellow-600">
+                                    Edit store
+                                </a>
                                 @if($store->status === 'pending')
                                     <form method="POST" action="{{ route('store.approve', $store->id) }}" class="inline">
                                         @csrf

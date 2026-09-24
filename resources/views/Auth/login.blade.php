@@ -31,6 +31,9 @@
                 @if (session('error'))
                     <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ session('error') }}</div>
                 @endif
+                @if (session('status'))
+                    <div class="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+                @endif
                 @if ($errors->any())
                     <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
                 @endif
@@ -58,6 +61,7 @@
                         <input type="checkbox" name="remember" value="1" class="h-4 w-4 rounded border-stone-300 text-yellow-500 focus:ring-yellow-400">
                         Remember me
                     </label>
+                    <div class="text-right"><a href="{{ route('password.request') }}" class="text-sm font-semibold text-yellow-600 hover:text-yellow-700">Forgot password?</a></div>
                     <button type="submit" class="w-full rounded-xl bg-yellow-500 px-4 py-3 font-bold text-white shadow-lg shadow-yellow-500/20 transition hover:bg-yellow-600 focus:outline-none focus:ring-4 focus:ring-yellow-200">Sign in</button>
                 </form>
 

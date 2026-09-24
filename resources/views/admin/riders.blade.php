@@ -39,7 +39,7 @@
                     <td class="px-6 py-4">{{ $Rider->image }}</td>
                     <td class="px-6 py-4"><a href="{{ route('viewdetail', $Rider->id)}}">View details</a></td>
                     
-        <td class="px-6 py-4">
+                    <td class="px-6 py-4">
     @if($Rider->status === 'approved')
         <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
             Approved
@@ -53,6 +53,10 @@
             Pending
         </span>
     @endif
+
+    <a href="{{ route('riders.edit', $Rider) }}" class="mt-2 inline-block rounded-lg bg-yellow-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-yellow-600">
+        Edit rider
+    </a>
 </td>
 
 

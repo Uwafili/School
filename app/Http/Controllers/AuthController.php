@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
@@ -10,6 +12,7 @@ use App\Models\Post;
 use App\Models\User;
 use App\Models\Rider;
 use App\Models\Store;
+use App\Models\ApprovalNotification;
 
 
 class AuthController extends Controller
@@ -63,6 +66,51 @@ class AuthController extends Controller
                 'failed'=>'This user information does not exist'
             ]);
          }
+   }
+
+   public function showForgotPasswordForm()
+   {
+      return view('Auth.forgot-password');
+   }
+
+   public function sendResetLinkEmail(Request $request)
+   {
+      $request->validate(['email' => ['required', 'email']]);
+
+      $status = Password::sendResetLink($request->only('email'));
+
+      return $status === Password::RESET_LINK_SENT
+         ? back()->with('status', __($status))
+         : back()->withErrors(['email' => __($status)]);
+   }
+
+   public function showResetPasswordForm(string $token)
+   {
+      return view('Auth.reset-password', [
+         'token' => $token,
+         'email' => request('email'),
+      ]);
+   }
+
+   public function resetPassword(Request $request)
+   {
+      $validated = $request->validate([
+         'token' => ['required'],
+         'email' => ['required', 'email'],
+         'password' => ['required', 'string', 'min:8', 'confirmed'],
+      ]);
+
+      $status = Password::reset(
+         $validated,
+         function (User $user, string $password) {
+            $user->forceFill(['password' => Hash::make($password)])->save();
+            $user->setRememberToken(Str::random(60));
+         }
+      );
+
+      return $status === Password::PASSWORD_RESET
+         ? redirect()->route('login')->with('status', __($status))
+         : back()->withErrors(['email' => __($status)]);
    }
 
    public function switchNavigationRole(Request $request)
@@ -126,6 +174,13 @@ public function Approve($id){
   $Riders=Rider::findOrFail($id);
   $Riders->status='approved';
   $Riders->save();
+   ApprovalNotification::create([
+      'user_id' => $Riders->user_id,
+      'role' => 'rider',
+      'title' => 'Rider application approved',
+      'message' => 'Your rider application has been approved. Your delivery dashboard is now ready.',
+      'status' => 'approved',
+   ]);
 //   return back()->with('success', 'Rider approved successfully!',compact('Riders'));
     return redirect()->back()->with('success', 'Rider approved successfully.');
 
@@ -138,6 +193,13 @@ public function Reject($id){
   $Riders=Rider::findOrFail($id);
   $Riders->status = 'rejected';
   $Riders->save();
+   ApprovalNotification::create([
+      'user_id' => $Riders->user_id,
+      'role' => 'rider',
+      'title' => 'Rider application update',
+      'message' => 'Your rider application needs attention. Please review your details and submit them again.',
+      'status' => 'rejected',
+   ]);
   return back()->with('reject', 'Rider info rejected!');
 }
 

@@ -79,6 +79,7 @@ Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'
 Route::post('/rider/order/{orderId}/pickup', [RiderController::class, 'confirmPickup'])->name('rider.pickup');
 Route::post('/rider/order/{orderId}/deliver', [RiderController::class, 'confirmDelivery'])->name('rider.deliver');
 Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount'])->name('notification.unread-count');
+    Route::get('/api/approval-status', [\App\Http\Controllers\ApprovalNotificationController::class, 'status'])->name('approval.status');
 
 
 Route::post('/order/create', [StoreController::class, 'createOrder'])->name('order.create');
@@ -96,6 +97,10 @@ Route::middleware('guest')->group(function(){
     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
     Route::view('/login', 'Auth.login')->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
+    Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail'])->name('password.email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
     
     Route::get('/auth/{provider}/redirect', [GoogleAuthController::class, 'redirect'])->whereIn('provider', ['google', 'facebook'])->name('social.redirect');
     Route::get('/auth/{provider}/callback', [GoogleAuthController::class, 'callback'])->whereIn('provider', ['google', 'facebook'])->name('social.callback');
@@ -116,6 +121,8 @@ Route::middleware(['auth', 'admin'])->group(function(){
     
     Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');
     Route::get('/riders',[AuthController::class,'showrider'])->name('riders');
+    Route::get('/riders/{rider}/edit', [AdminController::class, 'editRider'])->name('riders.edit');
+    Route::put('/riders/{rider}', [AdminController::class, 'updateRider'])->name('riders.update');
 
      Route::get('/viewdetail/{id}',[AuthController::class,'viewdetail'])->name('viewdetail');
 
@@ -127,6 +134,8 @@ Route::middleware(['auth', 'admin'])->group(function(){
      Route::get('/storeapprove', [AdminController::class, 'storeApprove'])->name('storeapprove');
      Route::post('/approve/store/{store}', [AdminController::class, 'approveStore'])->name('store.approve');
      Route::post('/reject/store/{store}', [AdminController::class, 'rejectStore'])->name('store.reject');
+    Route::get('/storeapprove/{store}/edit', [AdminController::class, 'editStore'])->name('stores.edit');
+    Route::put('/storeapprove/{store}', [AdminController::class, 'updateStore'])->name('stores.update');
 
      //  riders route
     
