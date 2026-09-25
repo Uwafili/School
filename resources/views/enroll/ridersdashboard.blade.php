@@ -2,9 +2,9 @@
 
 @section('content')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<div class="min-h-screen bg-slate-50 px-3 py-6 sm:px-6 lg:px-8">
+<div class="min-h-screen bg-[radial-gradient(circle_at_top_right,_#fff7ed,_transparent_35%),#f8fafc] px-3 py-6 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-7xl">
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">Delivery command center</p><h1 class="mt-1 text-3xl font-black text-gray-900">Rider dashboard</h1><p class="mt-2 text-sm text-gray-500">Manage jobs, confirm pickups, and complete deliveries safely.</p></div><div class="flex gap-2"><a href="{{ route('rider.assigned-orders') }}" class="rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-gray-200">All orders <span class="ml-1 rounded-full bg-yellow-100 px-2 py-0.5 text-yellow-800">{{ $orders->count() }}</span></a><a href="{{ route('rider.notifications') }}" class="rounded-full bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-gray-200">Notifications</a></div></div>
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">Delivery command center</p><h1 class="mt-1 text-3xl font-black tracking-tight text-gray-900">Rider dashboard</h1><p class="mt-2 max-w-xl text-sm text-gray-500">Manage jobs, confirm pickups, and complete deliveries safely.</p></div><div class="flex flex-wrap gap-2"><a href="{{ route('rider.assigned-orders') }}" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:ring-orange-300">All orders <span class="ml-1 rounded-full bg-yellow-100 px-2 py-0.5 text-yellow-800">{{ $orders->count() }}</span></a><a href="{{ route('rider.notifications') }}" class="rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-700">Notifications</a></div></div>
         @if(session('success'))<div class="mb-5 rounded-2xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{{ session('success') }}</div>@endif
         @if(session('error') || session('warning'))<div class="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{{ session('error') ?? session('warning') }}</div>@endif
 
@@ -46,7 +46,7 @@
 
     @foreach($orders as $order)
         @if($order->store && $order->store->latitude && $order->store->longitude)
-            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap).bindPopup('Pickup: {{ addslashes($order->store->stores) }}');
+            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap).bindPopup(@json('Pickup: ' . $order->store->stores));
         @endif
     @endforeach
 

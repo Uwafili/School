@@ -26,7 +26,11 @@ class StoreController extends Controller
      */
     public function create()
     {
-        //
+        $store = Auth::check()
+            ? Store::where('user_id', Auth::id())->latest()->first()
+            : null;
+
+        return view('enroll.store', compact('store'));
     } 
 
     /**

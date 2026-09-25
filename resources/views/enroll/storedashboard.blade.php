@@ -3,13 +3,13 @@
 
 @section('content')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <div class="min-h-screen bg-slate-50 py-6 px-3 sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_transparent_32%),#f8fafc] py-6 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
-            <div class="flex justify-between items-center mb-2">
-                <div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">FoodStore partner center</p><h1 class="mt-1 text-3xl font-black text-gray-900">Store dashboard</h1></div>
+            <div class="mb-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">FoodStore partner center</p><h1 class="mt-1 text-3xl font-black tracking-tight text-gray-900">Store dashboard</h1></div>
                 <a href="{{ route('store.info') }}"
-                    class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition shadow-md">
-                    📋 View Store Info
+                    class="inline-flex w-fit items-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-700">
+                    View store info
                 </a>
             </div>
             <p class="text-left text-gray-500 mb-8">Manage your store, orders, and delivery handoffs from one connected workspace.</p>
@@ -27,7 +27,7 @@
 
             @forelse ($stores as $store)
                 <!-- Store Owner Profile Card -->
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <div class="flex flex-col md:flex-row gap-8 items-start">
                         <!-- Store Logo -->
                         <div class="flex flex-col items-center">
@@ -82,7 +82,7 @@
                 </div>
 
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-10">
+                <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
                     <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-t-4 border-yellow-500">
                         <p class="text-gray-600 text-sm font-semibold mb-2">📦 TOTAL ORDERS</p>
                         <p class="text-3xl font-bold text-yellow-600">{{ $totalOrders }}</p>
@@ -113,7 +113,7 @@
                 </div>
 
                 <!-- Manage Orders Section -->
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
                         <span class="text-3xl">📋</span> Order Management
                     </h2>
@@ -194,7 +194,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">🚴 Delivery bids</h2>
                     <div class="space-y-4">
                         @forelse ($recentOrders->where('status', 'pending') as $order)
@@ -224,7 +224,7 @@
                 </div>
 
                 <!-- Recent Orders Table -->
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
+                <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                         <span class="text-3xl">📦</span> Recent Orders & Assignments
                     </h2>
@@ -364,7 +364,7 @@
                 </div>
 
                 <!-- Create New Post Item / Add Food to Categories -->
-                <div class="bg-white rounded-xl shadow-lg p-8">
+                <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
                         <span class="text-3xl">🍕</span> Add Food Items to Categories
                     </h2>
@@ -461,6 +461,7 @@
         </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    @if($stores->isNotEmpty())
     <script>
         const storeLatitude = @json($stores->first()->latitude ?? null);
         const storeLongitude = @json($stores->first()->longitude ?? null);
@@ -483,8 +484,9 @@
 
         @foreach($nearbyRiders as $rider)
             @if($rider->is_online && $rider->latitude && $rider->longitude)
-                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(storeRiderMap).bindPopup('Nearby rider: {{ addslashes($rider->user->name ?? $rider->name) }}<br>Distance: {{ $rider->distance_km }} km');
+                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(storeRiderMap).bindPopup(@json('Nearby rider: ' . ($rider->user->name ?? $rider->name) . '<br>Distance: ' . $rider->distance_km . ' km'));
             @endif
         @endforeach
     </script>
+    @endif
 @endsection
