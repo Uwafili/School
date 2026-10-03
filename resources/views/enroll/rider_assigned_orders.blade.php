@@ -4,7 +4,7 @@
 <div class="min-h-screen bg-gray-100 py-10 px-4">
     <div class="max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-yellow-600">📦 Assigned Orders</h1>
+            <h1 class="text-4xl font-bold text-yellow-600">📦 Delivery Orders</h1>
             <div class="flex gap-3">
                 <a href="{{ route('rider.notifications') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition shadow-md">
                     🔔 Notifications
@@ -46,32 +46,25 @@
             </div>
         </div>
 
-        @if ($orders->where('status', 'pending')->count() > 0)
-            <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">📍 Nearby open orders</h2>
+        @if ($nearbyOrders->isNotEmpty())
+            <section class="mb-10 rounded-xl bg-white p-8 shadow-lg">
+                <h2 class="mb-6 text-2xl font-bold text-gray-800">Nearby open orders</h2>
                 <div class="space-y-4">
-                    @foreach ($orders->where('status', 'pending') as $order)
-                        <div class="rounded-lg border-l-4 border-blue-500 bg-blue-50 p-5">
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <p class="font-bold text-gray-800">Order #{{ $order->id }} · {{ $order->customer_name }}</p>
-                                    <p class="mt-1 text-sm text-gray-600">Pickup: {{ $order->store->stores ?? 'Store' }} · {{ $order->store->address ?? 'Location shared by store' }}</p>
-                                    <p class="text-sm text-gray-600">Drop-off: {{ $order->customer_address }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-600">Order total: <strong>₦{{ number_format($order->total_price, 2) }}</strong></p>
-                                    <p class="text-lg font-bold text-green-700">Posted delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</p>
-                                    <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-3 flex items-end gap-2">
-                                        @csrf
-                                        <label class="flex-1 text-xs font-bold text-gray-700">Your bid (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->deliveryBids->first()->amount ?? $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-2 border-gray-200 px-3 py-2"></label>
-                                        <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700">Bid</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+                    @foreach ($nearbyOrders as $order)
+                        <article class="rounded-lg border-l-4 border-orange-400 bg-orange-50 p-5">
+                            <p class="font-bold text-gray-800">Order #{{ $order->id }} · {{ $order->store->stores }} · {{ $order->distance_km }} km</p>
+                            <p class="mt-1 text-sm text-gray-600">Pickup: {{ $order->store->address }} · Drop-off: {{ $order->customer_address }}</p>
+                            <p class="mt-2 text-sm text-gray-600">{{ $order->items_description }}</p>
+                            <p class="mt-2 font-bold text-green-700">Delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</p>
+                            <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-3 flex items-end gap-2">
+                                @csrf
+                                <label class="flex-1 text-sm font-bold text-gray-700">Your delivery offer (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-2 border-gray-200 px-3 py-2"></label>
+                                <button type="submit" class="rounded-lg bg-gray-900 px-5 py-3 font-bold text-white hover:bg-orange-600">Request assignment</button>
+                            </form>
+                        </article>
                     @endforeach
                 </div>
-            </div>
+            </section>
         @endif
 
         <!-- Assigned Orders (Pending Action) -->
@@ -124,14 +117,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            @if($order->status === 'pending' && !$order->rider_id)
-                                <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-5 flex flex-wrap items-end gap-3 border-t border-yellow-200 pt-5">
-                                    @csrf
-                                    <label class="flex-1 text-sm font-bold text-gray-700">Your delivery bid (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->deliveryBids->first()->amount ?? $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-2 border-gray-200 px-3 py-2"></label>
-                                    <button type="submit" class="rounded-lg bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700">Send bid</button>
-                                </form>
-                            @endif
 
                             <!-- Action Buttons -->
                             <div class="flex gap-4 mt-6 border-t border-yellow-200 pt-6">
@@ -209,10 +194,10 @@
         @endif
 
         <!-- Empty State -->
-        @if ($orders->isEmpty())
+        @if ($orders->isEmpty() && $nearbyOrders->isEmpty())
             <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8 text-center">
                 <p class="text-2xl font-bold text-yellow-700 mb-2">📭 No Orders Assigned Yet</p>
-                <p class="text-yellow-600">Check back soon! New orders will appear here when shop owners assign them to you.</p>
+                <p class="text-yellow-600">Nearby paid orders and jobs assigned by stores will appear here.</p>
             </div>
         @endif
     </div>

@@ -13,6 +13,24 @@
             <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100"><div class="flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-widest text-gray-400">Availability</p><h2 class="mt-1 text-xl font-black text-gray-900">{{ $Rider->is_online ? 'You are online' : 'You are offline' }}</h2></div><span class="h-3 w-3 rounded-full {{ $Rider->is_online ? 'bg-green-500' : 'bg-gray-300' }}"></span></div><p class="mt-3 text-sm text-gray-500">{{ $Rider->is_online ? 'Go offline when you need a break.' : 'Go online to receive jobs.' }}</p><form action="{{ route('rider.availability') }}" method="POST" class="mt-5">@csrf<input type="hidden" name="is_online" value="{{ $Rider->is_online ? 0 : 1 }}"><button type="submit" class="w-full rounded-xl {{ $Rider->is_online ? 'bg-gray-900 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }} py-3 text-sm font-black text-white">{{ $Rider->is_online ? 'Go offline' : 'Go online' }}</button></form></div>
         </section>
 
+        <section class="mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7" aria-live="polite">
+            <div class="mb-4 flex items-center justify-between gap-3"><div><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Nearby and unassigned</p><h2 class="mt-1 text-xl font-black text-gray-900">Open orders in your area</h2><p class="mt-1 text-sm text-gray-500">Only paid orders within {{ config('services.delivery.radius_km', 25) }} km are shown.</p></div><span data-nearby-count class="rounded-full bg-yellow-100 px-3 py-1 text-sm font-bold text-yellow-900">{{ $nearbyOrders->count() }}</span></div>
+            <div id="nearbyOrderList" data-nearby-order-list data-rider-id="{{ $Rider->id }}" class="grid gap-3 lg:grid-cols-2">
+                @forelse($nearbyOrders as $order)
+                    <article data-order-id="{{ $order->id }}" class="rounded-xl border border-orange-100 bg-orange-50/60 p-4">
+                        <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-black uppercase text-gray-500">Order #{{ $order->id }} · {{ $order->distance_km }} km away</p><h3 class="mt-1 font-black text-gray-900">{{ $order->store->stores }}</h3></div><span class="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-900">Open</span></div>
+                        <p class="mt-3 text-sm text-gray-700"><strong>Pickup:</strong> {{ $order->store->address }}</p>
+                        <p class="mt-1 text-sm text-gray-700"><strong>Drop-off:</strong> {{ $order->customer_address }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ $order->items_description }}</p>
+                        <div class="mt-3 flex items-center justify-between border-t border-orange-100 pt-3 text-sm"><span class="font-bold text-gray-700">Delivery pay: ₦{{ number_format($order->delivery_fee, 2) }}</span><span class="font-black text-yellow-700">Total ₦{{ number_format($order->total_price, 2) }}</span></div>
+                        <form method="POST" action="{{ route('order.bid', $order->id) }}" class="mt-3 flex items-end gap-2">@csrf<label class="flex-1 text-xs font-bold text-gray-700">Delivery offer (₦)<input type="number" name="amount" min="0" max="1000000" step="0.01" value="{{ $order->delivery_fee }}" required class="mt-1 w-full rounded-lg border-gray-200 px-3 py-2"></label><button type="submit" class="rounded-lg bg-gray-900 px-4 py-2.5 text-xs font-black text-white hover:bg-orange-600">Request assignment</button></form>
+                    </article>
+                @empty
+                    <p data-nearby-empty class="text-sm text-gray-500">No paid open orders are currently within your delivery area.</p>
+                @endforelse
+            </div>
+        </section>
+
         <section class="mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
             <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Live route view</p><h2 class="mt-1 text-xl font-black text-gray-900">Pickup points near your jobs</h2><p class="mt-1 text-sm text-gray-500">Store locations appear when sellers have shared their location.</p></div>
             <div id="riderMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50 sm:h-80"></div>
@@ -42,11 +60,18 @@
 
     if (riderLatitude && riderLongitude) {
         L.marker([riderLatitude, riderLongitude], { icon: L.divIcon({ className: 'custom-pin', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>', iconSize: [18,18], iconAnchor:[9,9], popupAnchor:[0,-10] }) }).addTo(riderMap).bindPopup('Your current location');
+        L.circle([riderLatitude, riderLongitude], { radius: 25000, color: '#eab308', weight: 1, fillColor: '#facc15', fillOpacity: 0.18 }).addTo(riderMap);
     }
 
     @foreach($orders as $order)
         @if($order->store && $order->store->latitude && $order->store->longitude)
             L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap).bindPopup(@json('Pickup: ' . $order->store->stores));
+        @endif
+    @endforeach
+
+    @foreach($nearbyOrders as $order)
+        @if($order->store && $order->store->latitude && $order->store->longitude)
+            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#f97316') }).addTo(riderMap).bindPopup(@json('Nearby order: ' . $order->store->stores . ' · ' . $order->distance_km . ' km'));
         @endif
     @endforeach
 

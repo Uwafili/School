@@ -13,7 +13,7 @@ class DashboardController extends Controller
 {
    public function index(){
 
-      $posts=Post::with('user')->latest()->get();
+      $posts=Post::with('user')->latest()->paginate(8);
       $orders = Order::with(['store.user', 'rider.user'])
          ->where(function ($query) {
             $query->where('customer_id', Auth::id())

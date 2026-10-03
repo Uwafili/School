@@ -7,6 +7,7 @@ use App\Models\Store;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Notification;
 
 
 
@@ -44,13 +45,15 @@ class StoreController extends Controller
             return redirect()->back()->with('error', 'You cannot create a store because you are registered as a rider. Please create a new account if you want to open a store.');
         }
 
-        $store=$request->validate([
+        $validated=$request->validate([
              'stores'=>['required', 'max:255'],
              'owner'=>['required', 'max:255'],
              'email'=>['required','max:255', 'email'],
              'phone'=>['required', 'max:15', 'regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
              'address'=>['required', 'max:255'],
              'image'=>['file', 'nullable', 'mimes:jpg,png,jpeg,avif','max:3000'],
+             'latitude'=>['nullable','numeric','between:-90,90'],
+             'longitude'=>['nullable','numeric','between:-180,180'],
         ]);
         $path=null;
         if($request->hasFile('image')){
@@ -63,6 +66,8 @@ class StoreController extends Controller
             'phone' => $request->phone,
             'address'=> $request->address,
             'image'=> $path,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
             "user_id"=>Auth::id(),
             'status' => 'pending'
 
@@ -88,6 +93,12 @@ class StoreController extends Controller
         // Get pending orders for this store
         $orders = \App\Models\Order::whereIn('store_id', $stores->pluck('id'))
             ->where('status', 'pending')
+            ->get();
+
+        $storeNotifications = Notification::where('user_id', $id)
+            ->with('order')
+            ->latest()
+            ->limit(10)
             ->get();
         
         // Get approved riders
@@ -156,6 +167,7 @@ class StoreController extends Controller
         return view('enroll.storedashboard', [
             'stores' => $stores,
             'orders' => $orders,
+            'storeNotifications' => $storeNotifications,
             'riders' => $onlineRiders,
             'nearbyRiders' => $nearbyRiders,
             'allRiders' => $riders,
@@ -169,6 +181,14 @@ class StoreController extends Controller
             'averageRating' => (float) ($ratingStats->average ?? 0),
             'ratingCount' => (int) ($ratingStats->count ?? 0),
         ]);
+    }
+
+    public function markStoreNotificationAsRead($notificationId)
+    {
+        $notification = Notification::where('user_id', Auth::id())->findOrFail($notificationId);
+        $notification->markAsRead();
+
+        return back()->with('success', 'Order notification marked as read.');
     }
 
     private function distanceInKilometres(float $latitudeOne, float $longitudeOne, float $latitudeTwo, float $longitudeTwo): float
@@ -247,7 +267,7 @@ class StoreController extends Controller
             return redirect()->back()->with('error', 'You need to have a store to create orders.');
         }
 
-        \App\Models\Order::create([
+        $order = \App\Models\Order::create([
             'store_id' => $store->id,
             'customer_id' => Auth::id(),
             'customer_name' => $validated['customer_name'],
@@ -257,6 +277,14 @@ class StoreController extends Controller
             'delivery_fee' => $validated['delivery_fee'],
             'items_description' => $validated['items_description'],
             'status' => 'pending',
+        ]);
+
+        Notification::create([
+            'user_id' => $store->user_id,
+            'order_id' => $order->id,
+            'title' => 'New food order received',
+            'message' => "Order #{$order->id} has been placed at {$store->stores}.",
+            'type' => 'order_assigned',
         ]);
 
         return redirect()->route('storedashboard')->with('success', 'Order created successfully!');

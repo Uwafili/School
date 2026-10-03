@@ -12,6 +12,7 @@ class Notification extends Model
 
     protected $fillable = [
         'rider_id',
+        'user_id',
         'order_id',
         'title',
         'message',
@@ -30,6 +31,11 @@ class Notification extends Model
     public function rider()
     {
         return $this->belongsTo(Rider::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

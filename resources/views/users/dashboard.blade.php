@@ -153,6 +153,7 @@
                             </article>
                         @endforeach
                     </div>
+                    <div class="mt-6">{{ $posts->links() }}</div>
                 @endif
             </section>
 

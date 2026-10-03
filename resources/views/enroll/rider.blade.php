@@ -1,5 +1,6 @@
 @extends('layouts.navbar')
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <div class="min-h-screen bg-cover bg-center flex items-center justify-center" style="background-image: url('{{('asset/Delivery.jpg') }}');">
     <div class=""></div>
@@ -197,6 +198,19 @@
                                 @error('license') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                             </div>
 
+                            <div class="rounded-xl border border-gray-200 p-4">
+                                <label class="mb-2 block text-sm font-bold text-gray-700">Your delivery area</label>
+                                <div id="riderLocationMap" class="h-56 overflow-hidden rounded-lg bg-gray-100" aria-label="Choose rider location on map"></div>
+                                <div class="mt-3 flex flex-wrap items-center gap-3">
+                                    <button id="useRiderLocation" type="button" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-bold text-white">Use my location</button>
+                                    <span id="riderLocationStatus" class="text-xs text-gray-500" aria-live="polite">Select your starting location on the map.</span>
+                                </div>
+                                <input id="riderLatitude" name="latitude" type="hidden" value="{{ old('latitude', $rider->latitude ?? '') }}">
+                                <input id="riderLongitude" name="longitude" type="hidden" value="{{ old('longitude', $rider->longitude ?? '') }}">
+                                @error('latitude') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                                @error('longitude') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Profile Photo (optional)</label>
 
@@ -241,6 +255,49 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const riderLocationMapElement = document.getElementById('riderLocationMap');
+        if (riderLocationMapElement) {
+            const riderLatitudeInput = document.getElementById('riderLatitude');
+            const riderLongitudeInput = document.getElementById('riderLongitude');
+            const riderLocationStatus = document.getElementById('riderLocationStatus');
+            const savedLatitude = Number(riderLatitudeInput.value);
+            const savedLongitude = Number(riderLongitudeInput.value);
+            const riderMap = L.map(riderLocationMapElement).setView(
+                savedLatitude && savedLongitude ? [savedLatitude, savedLongitude] : [6.5244, 3.3792],
+                savedLatitude && savedLongitude ? 13 : 6
+            );
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+            }).addTo(riderMap);
+
+            let riderMarker;
+            function setRiderLocation(latitude, longitude) {
+                riderLatitudeInput.value = latitude;
+                riderLongitudeInput.value = longitude;
+                if (riderMarker) riderMarker.setLatLng([latitude, longitude]);
+                else riderMarker = L.marker([latitude, longitude]).addTo(riderMap);
+                riderMap.setView([latitude, longitude], 14);
+                riderLocationStatus.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+            }
+
+            if (savedLatitude && savedLongitude) setRiderLocation(savedLatitude, savedLongitude);
+            riderMap.on('click', event => setRiderLocation(event.latlng.lat, event.latlng.lng));
+            document.getElementById('useRiderLocation').addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    riderLocationStatus.textContent = 'Location sharing is not available in this browser.';
+                    return;
+                }
+                riderLocationStatus.textContent = 'Finding your location...';
+                navigator.geolocation.getCurrentPosition(
+                    position => setRiderLocation(position.coords.latitude, position.coords.longitude),
+                    () => { riderLocationStatus.textContent = 'Could not access your location. Choose a point on the map.'; }
+                );
+            });
+        }
+
+    </script>
     <script>
             function previewImage(event){
                 const input = event.target;

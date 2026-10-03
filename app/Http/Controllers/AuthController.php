@@ -157,9 +157,19 @@ class AuthController extends Controller
    }
 
    public function manageUsers() {
-    $users = User::latest()->get();
+      $users = User::latest()->paginate(20);
     return view('admin.manage', compact('users'));
 }
+
+   public function sendUserPasswordResetLink(User $user)
+   {
+      $status = Password::sendResetLink(['email' => $user->email]);
+
+      return back()->with(
+         $status === Password::RESET_LINK_SENT ? 'success' : 'error',
+         __($status)
+      );
+   }
 
 public function showrider(){
      $Riders=Rider::latest()->get();

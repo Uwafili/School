@@ -25,6 +25,31 @@
                 </div>
             @endif
 
+            <section class="mb-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100" aria-live="polite">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-lg font-black text-gray-900">New order notifications</h2>
+                    <span class="text-xs font-bold text-gray-500">{{ $storeNotifications->where('is_read', false)->count() }} unread</span>
+                </div>
+                <div class="space-y-3" data-store-notifications data-store-user-id="{{ auth()->id() }}">
+                    @forelse ($storeNotifications as $notification)
+                        <article class="flex items-start gap-3 rounded-xl border p-4 {{ $notification->is_read ? 'border-gray-100 bg-gray-50' : 'border-yellow-200 bg-yellow-50' }}">
+                            <div class="min-w-0 flex-1">
+                                <p class="font-bold text-gray-900">{{ $notification->title }}</p>
+                                <p class="mt-1 text-sm text-gray-600">{{ $notification->message }}</p>
+                            </div>
+                            @unless ($notification->is_read)
+                                <form action="{{ route('store.notifications.read', $notification->id) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="text-xs font-bold text-orange-700 hover:text-orange-900">Mark read</button>
+                                </form>
+                            @endunless
+                        </article>
+                    @empty
+                        <p class="text-sm text-gray-500">New paid orders from your store will appear here.</p>
+                    @endforelse
+                </div>
+            </section>
+
             @forelse ($stores as $store)
                 <!-- Store Owner Profile Card -->
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
@@ -480,6 +505,7 @@
 
         if (storeLatitude && storeLongitude) {
             L.marker([storeLatitude, storeLongitude], { icon: yellowMarker('#facc15') }).addTo(storeRiderMap).bindPopup('Your store');
+            L.circle([storeLatitude, storeLongitude], { radius: 25000, color: '#eab308', weight: 1, fillColor: '#facc15', fillOpacity: 0.18 }).addTo(storeRiderMap);
         }
 
         @foreach($nearbyRiders as $rider)
@@ -489,4 +515,5 @@
         @endforeach
     </script>
     @endif
+    @vite('resources/js/app.js')
 @endsection

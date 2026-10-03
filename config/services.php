@@ -48,4 +48,8 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT_URI'),
     ],
 
+    'delivery' => [
+        'radius_km' => (float) env('RIDER_ORDER_RADIUS_KM', 25),
+    ],
+
 ];

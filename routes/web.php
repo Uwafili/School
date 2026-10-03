@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function(){
     Route::get('/store/{store}', [StoreController::class, 'show'])->name('store.show');
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
+    Route::post('/store/notifications/{notificationId}/read', [StoreController::class, 'markStoreNotificationAsRead'])->name('store.notifications.read');
     
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
     Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
@@ -116,6 +117,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::delete('/admin/Post/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     
     Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage.index');
+    Route::post('/admin/manage/{user}/password-reset', [AuthController::class, 'sendUserPasswordResetLink'])->name('user.password-reset');
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroy'])->name('user.destroy');
     
     

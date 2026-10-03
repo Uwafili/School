@@ -1,6 +1,7 @@
 @extends('layouts.navbar')
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <div class="min-h-screen bg-yellow-50 py-12 px-4">
     <div class="max-w-2xl mx-auto">
         <h1 class="text-4xl font-bold text-yellow-600 mb-2 text-center">🏪 Open Your Store</h1>
@@ -244,6 +245,19 @@
                             @enderror
                         </div>
 
+                        <div class="rounded-xl border border-gray-200 bg-white p-4">
+                            <label class="mb-2 block text-sm font-bold text-gray-700">Store location on map</label>
+                            <div id="storeLocationMap" class="h-56 overflow-hidden rounded-lg bg-gray-100" aria-label="Choose store location on map"></div>
+                            <div class="mt-3 flex flex-wrap items-center gap-3">
+                                <button id="useStoreLocation" type="button" class="rounded-lg bg-gray-900 px-3 py-2 text-xs font-bold text-white">Use my location</button>
+                                <span id="storeLocationStatus" class="text-xs text-gray-500" aria-live="polite">Select your store location on the map.</span>
+                            </div>
+                            <input id="storeLatitude" name="latitude" type="hidden" value="{{ old('latitude', $store->latitude ?? '') }}">
+                            <input id="storeLongitude" name="longitude" type="hidden" value="{{ old('longitude', $store->longitude ?? '') }}">
+                            @error('latitude') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            @error('longitude') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
                         <div>
                             <label for="image" class="block text-gray-700 font-bold mb-2">🖼️ Store Logo (Optional)</label>
                             <input id="image" name="image" type="file" accept="image/*"
@@ -268,4 +282,46 @@
         @endif
     </div>
 </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const storeLocationMapElement = document.getElementById('storeLocationMap');
+        if (storeLocationMapElement) {
+            const storeLatitudeInput = document.getElementById('storeLatitude');
+            const storeLongitudeInput = document.getElementById('storeLongitude');
+            const storeLocationStatus = document.getElementById('storeLocationStatus');
+            const savedLatitude = Number(storeLatitudeInput.value);
+            const savedLongitude = Number(storeLongitudeInput.value);
+            const storeMap = L.map(storeLocationMapElement).setView(
+                savedLatitude && savedLongitude ? [savedLatitude, savedLongitude] : [6.5244, 3.3792],
+                savedLatitude && savedLongitude ? 13 : 6
+            );
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+            }).addTo(storeMap);
+
+            let storeMarker;
+            function setStoreLocation(latitude, longitude) {
+                storeLatitudeInput.value = latitude;
+                storeLongitudeInput.value = longitude;
+                if (storeMarker) storeMarker.setLatLng([latitude, longitude]);
+                else storeMarker = L.marker([latitude, longitude]).addTo(storeMap);
+                storeMap.setView([latitude, longitude], 14);
+                storeLocationStatus.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+            }
+
+            if (savedLatitude && savedLongitude) setStoreLocation(savedLatitude, savedLongitude);
+            storeMap.on('click', event => setStoreLocation(event.latlng.lat, event.latlng.lng));
+            document.getElementById('useStoreLocation').addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    storeLocationStatus.textContent = 'Location sharing is not available in this browser.';
+                    return;
+                }
+                storeLocationStatus.textContent = 'Finding your location...';
+                navigator.geolocation.getCurrentPosition(
+                    position => setStoreLocation(position.coords.latitude, position.coords.longitude),
+                    () => { storeLocationStatus.textContent = 'Could not access your location. Choose a point on the map.'; }
+                );
+            });
+        }
+    </script>
 @endsection

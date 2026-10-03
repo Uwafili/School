@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use App\Models\Rider;
 use App\Models\DeliveryBid;
+use App\Models\Order;
 
 class RiderController extends Controller
 {
@@ -40,7 +41,9 @@ class RiderController extends Controller
             'license' => ['required','max:255',],
             'vehicle_number'=>['required','max:15','regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
             'vehicle'=>['required','max:255'],
-            'image'=>['file','nullable','mimes:jpg,png,jpeg,avif','max:3000']
+            'image'=>['file','nullable','mimes:jpg,png,jpeg,avif','max:3000'],
+            'latitude'=>['nullable','numeric','between:-90,90'],
+            'longitude'=>['nullable','numeric','between:-180,180'],
         ]);
 
         $path = null;
@@ -59,7 +62,9 @@ class RiderController extends Controller
             'vehicle' => $request->vehicle,
             'image' => $path, 
             'user_id' => Auth::id(),
-            'status' => 'pending' // Default status
+            'status' => 'pending',
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
         ]);
     
         return redirect()->route('rider.create')->with('success', 'Your details have been submitted. Admin will review and approve soon.');
@@ -84,53 +89,60 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review. Please check back later.');
         }
 
-        $orders = \App\Models\Order::where(function ($query) use ($Rider) {
-                $query->where('rider_id', $Rider->id)
-                    ->orWhere(function ($open) {
-                        $open->whereNull('rider_id')
-                            ->where('status', 'pending')
-                            ->where('payment_status', 'paid');
-                    });
-            })
-            ->with(['store', 'deliveryBids' => fn ($query) => $query->where('rider_id', $Rider->id)])
-            ->latest()
-            ->get();
-            $assignedCount = $orders->filter(fn ($order) => $order->status === 'assigned' || ($order->status === 'pending' && $order->rider_id === null))->count();
+        $orders = $this->assignedOrdersForRider($Rider);
+        $nearbyOrders = $this->nearbyOrdersForRider($Rider);
+        $assignedCount = $orders->where('status', 'assigned')->count() + $nearbyOrders->count();
         $activeCount = $orders->whereIn('status', ['accepted'])->count();
         $completedCount = $orders->where('status', 'completed')->count();
 
-        return view('enroll.ridersdashboard', compact('Rider', 'orders', 'assignedCount', 'activeCount', 'completedCount'));
+        return view('enroll.ridersdashboard', compact('Rider', 'orders', 'nearbyOrders', 'assignedCount', 'activeCount', 'completedCount'));
     }
 
-    public function placeBid(Request $request, $orderId)
+    private function assignedOrdersForRider(Rider $rider)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
-        $order = \App\Models\Order::with('store')->whereKey($orderId)->firstOrFail();
-        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:1000000']]);
+        return Order::where('rider_id', $rider->id)
+            ->with(['store', 'deliveryBids' => fn ($query) => $query->where('rider_id', $rider->id)])
+            ->latest()
+            ->get();
+    }
 
-        if (!$rider->is_online || $order->status !== 'pending' || $order->rider_id || $order->payment_status !== 'paid') {
-            return back()->with('error', 'This order is no longer open for bids.');
-        }
-        if (!$rider->latitude || !$rider->longitude || !$order->store?->latitude || !$order->store?->longitude) {
-            return back()->with('error', 'Share your location before bidding so the store can compare nearby riders.');
-        }
-
-        $distance = $this->distanceInKilometres(
-            $rider->latitude,
-            $rider->longitude,
-            $order->store->latitude,
-            $order->store->longitude
-        );
-        if ($distance > 25) {
-            return back()->with('error', 'This order is more than 25 km from your current location.');
+    private function nearbyOrdersForRider(Rider $rider)
+    {
+        if (!$rider->is_online || $rider->latitude === null || $rider->longitude === null) {
+            return collect();
         }
 
-        DeliveryBid::updateOrCreate(
-            ['order_id' => $order->id, 'rider_id' => $rider->id],
-            ['amount' => $validated['amount'], 'status' => 'pending']
-        );
+        $radius = (float) config('services.delivery.radius_km', 25);
+        $latitude = (float) $rider->latitude;
+        $longitude = (float) $rider->longitude;
+        $latitudeRange = $radius / 111.045;
+        $longitudeRange = $radius / max(111.045 * abs(cos(deg2rad($latitude))), 0.01);
 
-        return back()->with('success', 'Your delivery bid was sent to the store.');
+        return Order::whereNull('rider_id')
+            ->where('status', 'pending')
+            ->where('payment_status', 'paid')
+            ->whereHas('store', function ($query) use ($latitude, $longitude, $latitudeRange, $longitudeRange) {
+                $query->where('status', 'approved')
+                    ->whereBetween('latitude', [$latitude - $latitudeRange, $latitude + $latitudeRange])
+                    ->whereBetween('longitude', [$longitude - $longitudeRange, $longitude + $longitudeRange]);
+            })
+            ->with(['store', 'deliveryBids' => fn ($query) => $query->where('rider_id', $rider->id)])
+            ->latest()
+            ->get()
+            ->map(function ($order) use ($latitude, $longitude, $radius) {
+                $distance = $this->distanceInKilometres(
+                    $latitude,
+                    $longitude,
+                    (float) $order->store->latitude,
+                    (float) $order->store->longitude
+                );
+                $order->distance_km = round($distance, 1);
+                $order->within_radius = $distance <= $radius;
+
+                return $order;
+            })
+            ->filter(fn ($order) => $order->within_radius)
+            ->values();
     }
 
     private function distanceInKilometres(float $latitudeOne, float $longitudeOne, float $latitudeTwo, float $longitudeTwo): float
@@ -142,6 +154,24 @@ class RiderController extends Controller
             + cos(deg2rad($latitudeOne)) * cos(deg2rad($latitudeTwo)) * sin($longitudeDelta / 2) ** 2;
 
         return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    public function placeBid(Request $request, $orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:1000000']]);
+        $order = Order::whereKey($orderId)->firstOrFail();
+
+        if (!$this->nearbyOrdersForRider($rider)->contains('id', $order->id)) {
+            return back()->with('error', 'This order is no longer available in your delivery area.');
+        }
+
+        DeliveryBid::updateOrCreate(
+            ['order_id' => $order->id, 'rider_id' => $rider->id],
+            ['amount' => $validated['amount'], 'status' => 'pending']
+        );
+
+        return back()->with('success', 'Your delivery request was sent to the store.');
     }
 
     public function toggleAvailability(Request $request)
@@ -244,28 +274,7 @@ class RiderController extends Controller
 
         return view('enroll.rider_notifications', compact('notifications', 'unreadCount', 'rider'));
     }
-
-    /**
-     * Mark a notification as read
-     */
-    public function markNotificationAsRead($notificationId)
-    {
-        $notification = \App\Models\Notification::findOrFail($notificationId);
         
-        // Verify the notification belongs to the authenticated rider
-        $rider = Rider::where('user_id', Auth::id())->first();
-        if ($notification->rider_id !== $rider->id) {
-            abort(403, 'Unauthorized');
-        }
-
-        $notification->markAsRead();
-        
-        return redirect()->route('rider.notifications')->with('success', 'Notification marked as read.');
-    }
-
-    /**
-     * Get unread notification count (for AJAX/Dashboard)
-     */
     public function getUnreadCount()
     {
         $rider = Rider::where('user_id', Auth::id())->first();
@@ -296,19 +305,10 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review.');
         }
 
-        $orders = \App\Models\Order::where(function ($query) use ($rider) {
-                $query->where('rider_id', $rider->id)
-                    ->orWhere(function ($open) {
-                        $open->whereNull('rider_id')
-                            ->where('status', 'pending')
-                            ->where('payment_status', 'paid');
-                    });
-            })
-            ->with(['store', 'deliveryBids' => fn ($query) => $query->where('rider_id', $rider->id)])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $orders = $this->assignedOrdersForRider($rider);
+        $nearbyOrders = $this->nearbyOrdersForRider($rider);
 
-        return view('enroll.rider_assigned_orders', compact('orders', 'rider'));
+        return view('enroll.rider_assigned_orders', compact('orders', 'nearbyOrders', 'rider'));
     }
 
     /**
@@ -322,27 +322,19 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
         }
 
-        $order = \App\Models\Order::findOrFail($orderId);
+        $order = \App\Models\Order::where('rider_id', $rider->id)
+            ->where('status', 'assigned')
+            ->findOrFail($orderId);
 
         if (!$rider->is_online) {
             return redirect()->back()->with('error', 'Go online before accepting delivery jobs.');
         }
 
-        if ($order->rider_id === null && $order->status === 'pending' && $order->payment_status === 'paid') {
-            $claimed = \App\Models\Order::whereKey($order->id)
-                ->whereNull('rider_id')
-                ->where('status', 'pending')
-                ->where('payment_status', 'paid')
-                ->update(['rider_id' => $rider->id, 'status' => 'accepted']);
-
-            if (!$claimed) {
-                return redirect()->back()->with('error', 'Another rider already picked up this job.');
-            }
-        } elseif ($order->rider_id === $rider->id && $order->status === 'assigned') {
-            $order->update(['status' => 'accepted']);
-        } else {
+        if ($order->rider_id !== $rider->id || $order->status !== 'assigned') {
             return redirect()->back()->with('error', 'This delivery is no longer available.');
         }
+
+        $order->update(['status' => 'accepted']);
 
         // Update notification
         \App\Models\Notification::where('order_id', $order->id)

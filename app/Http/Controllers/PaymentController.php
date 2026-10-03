@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Store;
 use App\Models\Order;
+use App\Models\Rider;
+use App\Models\Notification as UserNotification;
+use App\Events\StoreOrderCreated;
+use App\Events\NearbyOrderAvailable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -161,7 +165,7 @@ class PaymentController extends Controller
             $deliveryFee = (float) ($payment['delivery_fee'] ?? 0) / $groupCount;
             $description = $items->map(fn ($item) => $item['title'] . ' x' . $item['quantity'])->implode(', ');
 
-            Order::create([
+            $order = Order::create([
                 'store_id' => $store->id,
                 'customer_id' => Auth::id(),
                 'customer_name' => Auth::user()->name,
@@ -177,6 +181,62 @@ class PaymentController extends Controller
                 'payment_method' => $method,
                 'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
             ]);
+
+            $notification = UserNotification::create([
+                'user_id' => $store->user_id,
+                'order_id' => $order->id,
+                'title' => 'New food order received',
+                'message' => "Order #{$order->id} has been placed at {$store->stores}.",
+                'type' => 'order_assigned',
+            ]);
+
+            if (config('broadcasting.default') === 'pusher' && config('broadcasting.connections.pusher.key')) {
+                event(new StoreOrderCreated($store->user_id, [
+                    'id' => $notification->id,
+                    'order_id' => $order->id,
+                    'title' => $notification->title,
+                    'message' => $notification->message,
+                ]));
+                $this->broadcastNearbyOrder($order, $store);
+            }
+        }
+    }
+
+    private function broadcastNearbyOrder(Order $order, Store $store): void
+    {
+        if ($store->latitude === null || $store->longitude === null) {
+            return;
+        }
+
+        $radius = (float) config('services.delivery.radius_km', 25);
+        $latitude = (float) $store->latitude;
+        $longitude = (float) $store->longitude;
+        $latitudeRange = $radius / 111.045;
+        $longitudeRange = $radius / max(111.045 * abs(cos(deg2rad($latitude))), 0.01);
+
+        $riders = Rider::where('status', 'approved')
+            ->where('is_online', true)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [$latitude - $latitudeRange, $latitude + $latitudeRange])
+            ->whereBetween('longitude', [$longitude - $longitudeRange, $longitude + $longitudeRange])
+            ->get(['id', 'latitude', 'longitude']);
+
+        foreach ($riders as $rider) {
+            if ($this->distanceInKm($latitude, $longitude, (float) $rider->latitude, (float) $rider->longitude) > $radius) {
+                continue;
+            }
+
+            event(new NearbyOrderAvailable($rider->id, [
+                'id' => $order->id,
+                'store_name' => $store->stores,
+                'store_address' => $store->address,
+                'customer_address' => $order->customer_address,
+                'items_description' => $order->items_description,
+                'total_price' => (float) $order->total_price,
+                'delivery_fee' => (float) $order->delivery_fee,
+                'distance_km' => round($this->distanceInKm($latitude, $longitude, (float) $rider->latitude, (float) $rider->longitude), 1),
+            ]));
         }
     }
 

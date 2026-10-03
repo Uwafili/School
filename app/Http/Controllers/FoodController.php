@@ -11,25 +11,25 @@ class FoodController extends Controller
 
     public function pizza()
 {
-    $posts=Post::with('user')->where('category','pizza')->paginate(5);
+    $posts=Post::with('user')->where('category','pizza')->paginate(8);
     return view('food.pizza',['posts'=>$posts]);
 } 
 
 public function burger()
 {
-    $posts=Post::with('user')->where('category','burger')->paginate(5);
+    $posts=Post::with('user')->where('category','burger')->paginate(8);
     return view('food.burger',['posts'=>$posts]);
 }
    
 public function salad()
 {   
-    $posts=Post::with('user')->where('category', 'salad')->paginate(5); 
+    $posts=Post::with('user')->where('category', 'salad')->paginate(8); 
     return view('food.salad', ['posts'=>$posts]);
 }
 
 public function drinks()
 {
-    $posts=Post::with('user')->where('category', 'drinks')->paginate(5); 
+    $posts=Post::with('user')->where('category', 'drinks')->paginate(8); 
     return view('food.drinks', ['posts'=>$posts]);
 }
 
