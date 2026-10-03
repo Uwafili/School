@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Store;
 use App\Models\Order;
 use App\Models\Rider;
 use App\Models\Notification as UserNotification;
 use App\Events\StoreOrderCreated;
 use App\Events\NearbyOrderAvailable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
@@ -29,29 +31,71 @@ class PaymentController extends Controller
 
     public function pay(Request $request)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:0',
-            'delivery_method' => 'required',
+        if ($request->input('payment_method') !== 'paystack') {
+            return back()->with('error', 'Paystack is the only available payment method.');
+        }
+
+        $validated = $request->validate([
+            'delivery_method' => ['required', 'in:location,pickup'],
+            'delivery_address' => ['required_if:delivery_method,location', 'nullable', 'string', 'max:1000'],
+            'pickup_station' => ['required_if:delivery_method,pickup', 'nullable', 'string', 'max:255'],
         ]);
 
-        $deliveryFee = $request->delivery_method === 'pickup'
+        $cart = $request->session()->get('cart', []);
+        if (empty($cart)) {
+            return redirect()->route('cart')->with('error', 'Your cart is empty.');
+        }
+
+        $secretKey = config('services.paystack.secret_key');
+        if (!$secretKey) {
+            return back()->withInput()->with('error', 'Paystack is not configured yet. Add your Paystack secret key and try again.');
+        }
+
+        $deliveryFee = $validated['delivery_method'] === 'pickup'
             ? 0
             : $this->deliveryFee(Auth::user()?->latitude, Auth::user()?->longitude);
-        $subtotal = collect($request->session()->get('cart', []))->sum(fn ($item) => $item['price'] * $item['quantity']);
+        $subtotal = collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
+        $amount = $subtotal + $deliveryFee;
+        $reference = 'foodstore-' . Str::uuid();
 
-       
+        try {
+            $response = Http::withToken($secretKey)
+                ->acceptJson()
+                ->timeout(15)
+                ->post('https://api.paystack.co/transaction/initialize', [
+                    'email' => Auth::user()->email,
+                    'amount' => (string) (int) round($amount * 100),
+                    'currency' => 'NGN',
+                    'reference' => $reference,
+                    'callback_url' => route('payment.paystack.callback'),
+                    'metadata' => ['user_id' => Auth::id()],
+                ]);
+        } catch (ConnectionException) {
+            return back()->withInput()->with('error', 'Paystack could not be reached. Please try again.');
+        }
+
+        $authorizationUrl = $response->json('data.authorization_url');
+        if (!$response->successful()
+            || !$response->json('status')
+            || !is_string($authorizationUrl)
+            || parse_url($authorizationUrl, PHP_URL_SCHEME) !== 'https'
+            || parse_url($authorizationUrl, PHP_URL_HOST) !== 'checkout.paystack.com') {
+            return back()->withInput()->with('error', 'Paystack could not start your payment. Please try again.');
+        }
+
         $request->session()->put('pending_payment', [
-            'amount' => $subtotal + $deliveryFee,
+            'amount' => $amount,
             'subtotal' => $subtotal,
             'delivery_fee' => $deliveryFee,
-            'delivery_method' => $request->delivery_method,
-            'delivery_address' => $request->delivery_address,
-            'pickup_station' => $request->pickup_station,
-            'payment_method' => $request->payment_method,
+            'delivery_method' => $validated['delivery_method'],
+            'delivery_address' => $validated['delivery_address'] ?? null,
+            'pickup_station' => $validated['pickup_station'] ?? null,
+            'payment_method' => 'paystack',
+            'reference' => $reference,
+            'cart' => $cart,
         ]);
 
-        return redirect()->route('bank');
-        // return back()->with('success','Payment Successful');
+        return redirect()->away($authorizationUrl);
     }
 
     private function deliveryFee(?float $latitude, ?float $longitude): float
@@ -83,70 +127,54 @@ class PaymentController extends Controller
         return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
-    public function bank(Request $request)
+    public function paystackCallback(Request $request)
     {
         $payment = $request->session()->get('pending_payment', []);
+        $reference = (string) $request->query('reference', '');
 
-        if (empty($payment)) {
-            return redirect()->route('payment.checkout')->with('error', 'Start checkout before opening payment.');
+        if (empty($payment['reference']) || empty($payment['cart']) || !$reference || !hash_equals($payment['reference'], $reference)) {
+            return redirect()->route('payment.checkout')->with('error', 'Payment session expired or the reference is invalid.');
         }
 
-        return view('check.bank', compact('payment'));
-    }
-
-    public function confirmBankTransfer(Request $request)
-    {
-        $paymentMethod = $request->input('payment_method', 'bank');
-        $payment = $request->session()->get('pending_payment');
-        if (empty($payment)) {
-            return redirect()->route('payment.checkout')->with('error', 'Your checkout session expired. Please try again.');
+        $secretKey = config('services.paystack.secret_key');
+        if (!$secretKey) {
+            return redirect()->route('payment.checkout')->with('error', 'Paystack is not configured yet.');
         }
 
-        if ($paymentMethod === 'wallet') {
-            $user = Auth::user();
-            $amount = (float) $payment['amount'];
-
-            if ((float) $user->wallet_balance < $amount) {
-                return back()->withErrors(['wallet' => 'Your wallet balance is not enough for this order.'])->withInput();
-            }
-
-            User::where('id', $user->id)->update([
-                'wallet_balance' => number_format((float) $user->wallet_balance - $amount, 2, '.', ''),
-            ]);
-            $request->session()->put('payment_confirmation', [
-                'name' => $user->name,
-                'email' => $user->email,
-                'amount' => $amount,
-                'method' => 'wallet',
-                'confirmed_at' => now()->toDateTimeString(),
-            ]);
-            $this->createPaidOrders($request, $payment, 'wallet');
-            $request->session()->forget(['cart', 'pending_payment']);
-
-            return redirect()->route('dashboard')->with('success', 'Wallet payment completed successfully.');
+        try {
+            $response = Http::withToken($secretKey)
+                ->acceptJson()
+                ->timeout(15)
+                ->get('https://api.paystack.co/transaction/verify/' . rawurlencode($reference));
+        } catch (ConnectionException) {
+            return redirect()->route('payment.checkout')->with('error', 'We could not verify your Paystack payment. Please retry.');
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-        ]);
+        $transaction = $response->json('data', []);
+        $expectedAmount = (int) round(((float) $payment['amount']) * 100);
+        $paidEmail = strtolower((string) data_get($transaction, 'customer.email'));
+        $expectedEmail = strtolower((string) Auth::user()->email);
 
-        $request->session()->put('payment_confirmation', [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'amount' => $payment['amount'],
-            'method' => 'bank transfer',
-            'confirmed_at' => now()->toDateTimeString(),
-        ]);
-        $this->createPaidOrders($request, $payment, 'bank transfer');
+        if (!$response->successful()
+            || !$response->json('status')
+            || data_get($transaction, 'status') !== 'success'
+            || data_get($transaction, 'reference') !== $reference
+            || (int) data_get($transaction, 'amount') !== $expectedAmount
+            || data_get($transaction, 'currency') !== 'NGN'
+            || !$paidEmail
+            || !hash_equals($expectedEmail, $paidEmail)) {
+            return redirect()->route('payment.checkout')->with('error', 'Paystack did not confirm this payment. No order was charged.');
+        }
+
+        $this->createPaidOrders($request, $payment, 'paystack');
         $request->session()->forget(['cart', 'pending_payment']);
 
-        return redirect()->route('dashboard')->with('success', 'Payment confirmation received. We will verify your transfer shortly.');
+        return redirect()->route('dashboard')->with('success', 'Payment completed successfully.');
     }
 
     private function createPaidOrders(Request $request, array $payment, string $method): void
     {
-        $cart = $request->session()->get('cart', []);
+        $cart = $payment['cart'] ?? [];
         if (empty($cart)) {
             return;
         }

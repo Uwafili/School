@@ -10,6 +10,7 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class OrderDispatchTest extends TestCase
@@ -95,14 +96,27 @@ class OrderDispatchTest extends TestCase
         config([
             'broadcasting.default' => 'pusher',
             'broadcasting.connections.pusher.key' => 'test-key',
+            'services.paystack.secret_key' => 'sk_test_example',
         ]);
         Event::fake();
+        Http::fake([
+            'https://api.paystack.co/transaction/verify/paystack-test-reference' => Http::response([
+                'status' => true,
+                'data' => [
+                    'status' => 'success',
+                    'reference' => 'paystack-test-reference',
+                    'amount' => 290000,
+                    'currency' => 'NGN',
+                    'customer' => ['email' => $customer->email],
+                ],
+            ]),
+        ]);
 
         $this->actingAs($customer)->withSession([
             'cart' => [[
                 'store_id' => $store->id,
-                'title' => 'Jollof Rice',
-                'price' => 2400,
+                'title' => 'Changed cart item',
+                'price' => 5000,
                 'quantity' => 1,
             ]],
             'pending_payment' => [
@@ -110,12 +124,16 @@ class OrderDispatchTest extends TestCase
                 'delivery_fee' => 500,
                 'delivery_method' => 'delivery',
                 'delivery_address' => 'Customer Address',
+                'reference' => 'paystack-test-reference',
+                'cart' => [[
+                    'store_id' => $store->id,
+                    'title' => 'Jollof Rice',
+                    'price' => 2400,
+                    'quantity' => 1,
+                ]],
             ],
-        ])->post(route('bank.confirm'), [
-            'payment_method' => 'bank',
-            'name' => $customer->name,
-            'email' => $customer->email,
-        ])->assertRedirect(route('dashboard'));
+        ])->get(route('payment.paystack.callback', ['reference' => 'paystack-test-reference']))
+            ->assertRedirect(route('dashboard'));
 
         $order = Order::where('store_id', $store->id)->firstOrFail();
         $this->assertDatabaseHas('notifications', [
@@ -123,6 +141,7 @@ class OrderDispatchTest extends TestCase
             'order_id' => $order->id,
             'title' => 'New food order received',
         ]);
+        $this->assertSame('Jollof Rice x1', $order->items_description);
         Event::assertDispatched(NearbyOrderAvailable::class, fn ($event) =>
             $event->riderId === $rider->id
             && $event->broadcastOn()[0]->name === 'private-riders.' . $rider->id
@@ -132,6 +151,169 @@ class OrderDispatchTest extends TestCase
         $this->actingAs($owner)->get(route('storedashboard'))
             ->assertOk()
             ->assertSee('New food order received');
+    }
+
+    public function test_checkout_initializes_paystack_with_the_server_calculated_amount(): void
+    {
+        $customer = User::factory()->create();
+        config(['services.paystack.secret_key' => 'sk_test_example']);
+        Http::fake([
+            'https://api.paystack.co/transaction/initialize' => Http::response([
+                'status' => true,
+                'data' => ['authorization_url' => 'https://checkout.paystack.com/test-session'],
+            ]),
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('payment.checkout'))
+            ->assertOk()
+            ->assertSee('Paystack')
+            ->assertDontSee('Flutterwave')
+            ->assertDontSee('Cash on delivery');
+
+        $this->actingAs($customer)->withSession([
+            'cart' => [[
+                'store_id' => 1,
+                'title' => 'Jollof Rice',
+                'price' => 2400,
+                'quantity' => 1,
+            ]],
+        ])->post(route('payment.pay'), [
+            'amount' => 1,
+            'payment_method' => 'paystack',
+            'delivery_method' => 'pickup',
+            'pickup_station' => 'ikeja',
+        ])->assertRedirect('https://checkout.paystack.com/test-session');
+
+        $this->assertSame(2400, session('pending_payment.amount'));
+        $this->assertSame('Jollof Rice', session('pending_payment.cart.0.title'));
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://api.paystack.co/transaction/initialize'
+            && $request['amount'] === '240000'
+            && $request['currency'] === 'NGN'
+        );
+    }
+
+    public function test_customer_dashboard_renders_the_food_hero_image(): void
+    {
+        $customer = User::factory()->create();
+
+        $this->actingAs($customer)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Find something delicious today.')
+            ->assertSee('aria-roledescription="carousel"', false)
+            ->assertSee('background-image: linear-gradient', false);
+    }
+
+    public function test_food_hero_slides_feature_products_from_the_top_approved_store(): void
+    {
+        $customer = User::factory()->create();
+        $topOwner = User::factory()->create();
+        $otherOwner = User::factory()->create();
+        $topStore = Store::create([
+            'user_id' => $topOwner->id,
+            'stores' => 'Top Kitchen',
+            'owner' => 'Top Owner',
+            'email' => 'top-kitchen@example.test',
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        Store::create([
+            'user_id' => $otherOwner->id,
+            'stores' => 'Other Kitchen',
+            'owner' => 'Other Owner',
+            'email' => 'other-kitchen@example.test',
+            'phone' => '08012345679',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+
+        foreach (range(1, 3) as $number) {
+            Post::create([
+                'user_id' => $topOwner->id,
+                'title' => 'Top dish ' . $number,
+                'description' => 'Featured dish from the top kitchen',
+                'price' => '2500',
+                'category' => 'pizza',
+                'image' => 'top-dish-' . $number . '.jpg',
+            ]);
+        }
+        Post::create([
+            'user_id' => $otherOwner->id,
+            'title' => 'Other seller dish',
+            'description' => 'Dish from another seller',
+            'price' => '1500',
+            'category' => 'burger',
+        ]);
+
+        $response = $this->actingAs($customer)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Find something delicious today.')
+            ->assertSee('Top dish 1')
+            ->assertSee('Top dish 2')
+            ->assertSee('Top dish 3')
+            ->assertSee($topStore->stores)
+            ->assertSee('top-dish-1.jpg');
+
+        libxml_use_internal_errors(true);
+        $document = new \DOMDocument();
+        $document->loadHTML($response->getContent());
+        libxml_clear_errors();
+        $slides = (new \DOMXPath($document))->query('//*[@data-food-slide]');
+        $slideContent = '';
+        foreach ($slides as $slide) {
+            $slideContent .= $slide->textContent;
+        }
+
+        $this->assertStringNotContainsString('Other seller dish', $slideContent);
+    }
+
+    public function test_checkout_rejects_removed_payment_methods(): void
+    {
+        $customer = User::factory()->create();
+
+        $this->actingAs($customer)->from(route('payment.checkout'))->withSession([
+            'cart' => [['store_id' => 1, 'title' => 'Meal', 'price' => 1000, 'quantity' => 1]],
+        ])->post(route('payment.pay'), [
+            'payment_method' => 'flutterwave',
+            'delivery_method' => 'pickup',
+            'pickup_station' => 'ikeja',
+        ])->assertRedirect(route('payment.checkout'))
+            ->assertSessionHas('error', 'Paystack is the only available payment method.');
+    }
+
+    public function test_unverified_paystack_callback_does_not_create_an_order(): void
+    {
+        $customer = User::factory()->create();
+        config(['services.paystack.secret_key' => 'sk_test_example']);
+        Http::fake([
+            'https://api.paystack.co/transaction/verify/unverified-reference' => Http::response([
+                'status' => true,
+                'data' => [
+                    'status' => 'success',
+                    'reference' => 'unverified-reference',
+                    'amount' => 1,
+                    'currency' => 'NGN',
+                    'customer' => ['email' => $customer->email],
+                ],
+            ]),
+        ]);
+
+        $this->actingAs($customer)->withSession([
+            'cart' => [['store_id' => 1, 'title' => 'Meal', 'price' => 1000, 'quantity' => 1]],
+            'pending_payment' => [
+                'amount' => 1000,
+                'reference' => 'unverified-reference',
+                'cart' => [['store_id' => 1, 'title' => 'Meal', 'price' => 1000, 'quantity' => 1]],
+            ],
+        ])->get(route('payment.paystack.callback', ['reference' => 'unverified-reference']))
+            ->assertRedirect(route('payment.checkout'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseCount('orders', 0);
     }
 
     public function test_rider_sees_nearby_paid_orders_but_not_distant_unassigned_orders(): void

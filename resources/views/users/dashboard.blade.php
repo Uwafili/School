@@ -26,17 +26,55 @@
                 </a>
             </div>
 
-            <section
-                class="mb-6 grid gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-yellow-400 to-orange-500 p-5 text-gray-900 shadow-lg shadow-yellow-100 sm:grid-cols-[1fr_auto] sm:items-center sm:p-7">
-                <div>
-                    <p class="text-xs font-black uppercase tracking-[.16em] text-orange-950/60">Hungry?</p>
-                    <h2 class="mt-1 text-2xl font-black sm:text-3xl">Find something delicious today.</h2>
-                    <p class="mt-2 text-sm font-semibold text-orange-950/70">Fresh meals from FoodStore sellers near you.
-                    </p>
-                </div>
-                <a href="#food-feed"
-                    class="inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-black text-white transition hover:bg-gray-700">Explore
-                    food <span>→</span></a>
+            <style>
+                .food-hero-slide {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 0;
+                    background-position: center;
+                    background-size: cover;
+                    opacity: 0;
+                    transition: opacity 900ms ease;
+                }
+
+                .food-hero-slide.is-active { z-index: 1; opacity: 1; }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .food-hero-slide { transition: none; }
+                }
+            </style>
+            <section class="relative mb-6 min-h-88 overflow-hidden rounded-3xl bg-gray-900 text-white shadow-lg sm:min-h-100" aria-roledescription="carousel" aria-label="Featured food from our top store">
+                @forelse($featuredSlides as $index => $slide)
+                    <article data-food-slide class="food-hero-slide {{ $index === 0 ? 'is-active' : '' }}" style="background-image: linear-gradient(90deg, rgba(17, 24, 39, .9) 0%, rgba(17, 24, 39, .7) 48%, rgba(17, 24, 39, .12) 100%), url('{{ $slide['image'] }}');" aria-hidden="{{ $index === 0 ? 'false' : 'true' }}" aria-label="{{ $slide['title'] }} from {{ $slide['store'] }}">
+                        <div class="flex min-h-88 items-end p-6 sm:min-h-100 sm:items-center sm:p-10 lg:p-14">
+                            <div class="max-w-xl">
+                                <p class="text-xs font-black uppercase tracking-[.16em] text-yellow-300">{{ $slide['category'] }} · {{ $slide['store'] }}</p>
+                                <h2 class="mt-3 text-3xl font-black text-white sm:text-4xl">Find something delicious today.</h2>
+                                <h3 class="mt-3 text-lg font-black text-yellow-200 sm:text-xl">{{ $slide['title'] }}</h3>
+                                <p class="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-white/85 sm:text-base">{{ $slide['description'] }}</p>
+                                <div class="mt-5 flex flex-wrap items-center gap-3">
+                                    <a href="{{ $slide['url'] }}" class="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-3 text-sm font-black text-gray-950 transition hover:bg-yellow-300">View dish <span aria-hidden="true">→</span></a>
+                                    <span class="rounded-full border border-white/30 bg-black/20 px-4 py-2 text-sm font-black text-white">₦{{ number_format((float) $slide['price'], 0) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                @empty
+                    <article data-food-slide class="food-hero-slide is-active" style="background-image: linear-gradient(90deg, rgba(17, 24, 39, .9), rgba(17, 24, 39, .18)), url('{{ asset('asset/generated.jpg') }}');" aria-hidden="false">
+                        <div class="flex min-h-88 items-end p-6 sm:min-h-100 sm:items-center sm:p-10 lg:p-14"><div class="max-w-xl"><p class="text-xs font-black uppercase tracking-[.16em] text-yellow-300">Fresh from FoodStore</p><h2 class="mt-3 text-3xl font-black text-white sm:text-4xl">Find something delicious today.</h2><p class="mt-3 text-sm leading-6 text-white/85">Browse meals from our food sellers.</p><a href="#food-feed" class="mt-5 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-3 text-sm font-black text-gray-950 transition hover:bg-yellow-300">Explore food <span aria-hidden="true">→</span></a></div></div>
+                    </article>
+                @endforelse
+                @if($featuredSlides->count() > 1)
+                    <div class="absolute bottom-5 right-5 z-10 flex items-center gap-2 sm:bottom-8 sm:right-8">
+                        <button type="button" data-food-previous class="grid h-10 w-10 place-items-center rounded-full border border-white/40 bg-black/35 text-white transition hover:bg-black/60" aria-label="Previous featured dish">‹</button>
+                        <div class="flex items-center gap-1.5" role="group" aria-label="Choose featured dish">
+                            @foreach($featuredSlides as $index => $slide)
+                                <button type="button" data-food-dot="{{ $index }}" class="h-2.5 w-2.5 rounded-full border border-white/80 transition {{ $index === 0 ? 'bg-white' : 'bg-white/30' }}" aria-label="Show {{ $slide['title'] }}" aria-pressed="{{ $index === 0 ? 'true' : 'false' }}"></button>
+                            @endforeach
+                        </div>
+                        <button type="button" data-food-next class="grid h-10 w-10 place-items-center rounded-full border border-white/40 bg-black/35 text-white transition hover:bg-black/60" aria-label="Next featured dish">›</button>
+                    </div>
+                @endif
             </section>
 
             <div class="mb-7 grid gap-4 lg:grid-cols-[.8fr_1.2fr]">
@@ -200,8 +238,58 @@
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        const foodSlides = Array.from(document.querySelectorAll('[data-food-slide]'));
+        const foodSlideDots = Array.from(document.querySelectorAll('[data-food-dot]'));
+        let activeFoodSlide = 0;
+        let foodSlideTimer;
+
+        function showFoodSlide(index) {
+            activeFoodSlide = (index + foodSlides.length) % foodSlides.length;
+            foodSlides.forEach((slide, slideIndex) => {
+                const isActive = slideIndex === activeFoodSlide;
+                slide.classList.toggle('is-active', isActive);
+                slide.setAttribute('aria-hidden', String(!isActive));
+                slide.inert = !isActive;
+            });
+            foodSlideDots.forEach((dot, dotIndex) => {
+                const isActive = dotIndex === activeFoodSlide;
+                dot.classList.toggle('bg-white', isActive);
+                dot.classList.toggle('bg-white/30', !isActive);
+                dot.setAttribute('aria-pressed', String(isActive));
+            });
+        }
+
+        showFoodSlide(activeFoodSlide);
+
+        if (foodSlides.length > 1) {
+            const startFoodSlideshow = () => {
+                window.clearInterval(foodSlideTimer);
+                if (!document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    foodSlideTimer = window.setInterval(() => showFoodSlide(activeFoodSlide + 1), 5500);
+                }
+            };
+
+            document.querySelector('[data-food-previous]')?.addEventListener('click', () => {
+                showFoodSlide(activeFoodSlide - 1);
+                startFoodSlideshow();
+            });
+            document.querySelector('[data-food-next]')?.addEventListener('click', () => {
+                showFoodSlide(activeFoodSlide + 1);
+                startFoodSlideshow();
+            });
+            foodSlideDots.forEach(dot => dot.addEventListener('click', () => {
+                showFoodSlide(Number(dot.dataset.foodDot));
+                startFoodSlideshow();
+            }));
+            document.addEventListener('visibilitychange', startFoodSlideshow);
+            startFoodSlideshow();
+        }
+
         const customerMap = L.map('customerMap').setView([6.5244, 3.3792], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(customerMap);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+        }).addTo(customerMap);
 
         function yellowMarker(color = '#facc15') {
             return L.divIcon({
@@ -229,6 +317,8 @@
 
         const assignedRiderMarkers = {};
         const orderRoutes = {};
+        const lastRouteStarts = {};
+        const routeRequestVersions = {};
         const orderDestinationMarkers = {};
         const orderPickupMarkers = {};
         let hasFittedTrackingBounds = false;
@@ -236,7 +326,7 @@
         function destinationMarker() {
             return L.divIcon({
                 className: 'custom-pin',
-                html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>',
+                html: '<span style="display:block;width:20px;height:20px;border-radius:50%;background:#10b981;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.35);"></span>',
                 iconSize: [18, 18],
                 iconAnchor: [9, 9],
                 popupAnchor: [0, -10]
@@ -279,22 +369,32 @@
                 orderRoutes[order.order_id].setLatLngs([start, end]);
             } else {
                 orderRoutes[order.order_id] = L.polyline([start, end], {
-                    color: '#f59e0b',
+                    color: '#f97316',
                     weight: 5,
-                    opacity: 0.8,
-                    dashArray: '10 8'
+                    opacity: 0.45,
+                    lineCap: 'round',
+                    lineJoin: 'round'
                 }).addTo(customerMap);
             }
+
+            if (lastRouteStarts[order.order_id] && customerMap.distance(lastRouteStarts[order.order_id], start) < 250) return;
+            lastRouteStarts[order.order_id] = start;
+            const requestVersion = (routeRequestVersions[order.order_id] || 0) + 1;
+            routeRequestVersions[order.order_id] = requestVersion;
 
             fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`)
                 .then(response => response.json())
                 .then(route => {
+                    if (routeRequestVersions[order.order_id] !== requestVersion) return;
                     const coordinates = route.routes?.[0]?.geometry?.coordinates;
                     if (coordinates?.length) {
                         orderRoutes[order.order_id].setLatLngs(coordinates.map(([longitude, latitude]) => [latitude, longitude]));
+                        orderRoutes[order.order_id].setStyle({ opacity: 0.95, weight: 6 });
                     }
                 })
-                .catch(() => {});
+                .catch(() => {
+                    if (routeRequestVersions[order.order_id] === requestVersion) lastRouteStarts[order.order_id] = null;
+                });
         }
 
         function refreshAssignedRiders() {
@@ -314,7 +414,7 @@
                             const coordinates = [parseFloat(order.latitude), parseFloat(order.longitude)];
                             trackingBounds.push(coordinates);
                             if (!assignedRiderMarkers[order.order_id]) {
-                                assignedRiderMarkers[order.order_id] = L.marker(coordinates, { icon: yellowMarker('#f59e0b') }).addTo(customerMap);
+                                assignedRiderMarkers[order.order_id] = L.marker(coordinates, { icon: yellowMarker('#ef4444') }).addTo(customerMap);
                             } else {
                                 assignedRiderMarkers[order.order_id].setLatLng(coordinates);
                             }

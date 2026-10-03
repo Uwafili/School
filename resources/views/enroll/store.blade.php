@@ -295,8 +295,9 @@
                 savedLatitude && savedLongitude ? [savedLatitude, savedLongitude] : [6.5244, 3.3792],
                 savedLatitude && savedLongitude ? 13 : 6
             );
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19,
             }).addTo(storeMap);
 
             let storeMarker;

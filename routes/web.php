@@ -43,8 +43,7 @@ Route::middleware('auth')->group(function(){
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
     Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
 
-    Route::get('/bank', [PaymentController::class, 'bank'])->name('bank');
-    Route::post('/bank/confirm', [PaymentController::class, 'confirmBankTransfer'])->name('bank.confirm');
+    Route::get('/payment/paystack/callback', [PaymentController::class, 'paystackCallback'])->name('payment.paystack.callback');
 
 
 Route::any('/pizza', [FoodController::class, 'pizza'])->name('food.pizza');

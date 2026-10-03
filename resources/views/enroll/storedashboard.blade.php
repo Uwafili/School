@@ -133,7 +133,7 @@
 
                 <!-- Manage Orders Section -->
                 <div class="bg-white rounded-3xl shadow-sm ring-1 ring-gray-100 p-6 mb-10">
-                    <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Delivery network</p><h2 class="mt-1 text-xl font-black text-gray-900">Riders near your store</h2><p class="mt-1 text-sm text-gray-500">Online riders with shared locations can be assigned from the order form below.</p></div>
+                    <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Delivery network</p><h2 class="mt-1 text-xl font-black text-gray-900">Riders near your store</h2><p class="mt-1 text-sm text-gray-500">Select a rider marker to preview their road route to your store.</p></div>
                     <div id="storeRiderMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50"></div>
                 </div>
 
@@ -491,7 +491,10 @@
         const storeLatitude = @json($stores->first()->latitude ?? null);
         const storeLongitude = @json($stores->first()->longitude ?? null);
         const storeRiderMap = L.map('storeRiderMap').setView([storeLatitude || 6.5244, storeLongitude || 3.3792], storeLatitude ? 12 : 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(storeRiderMap);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+        }).addTo(storeRiderMap);
 
         function yellowMarker(color = '#facc15') {
             return L.divIcon({
@@ -503,14 +506,41 @@
             });
         }
 
+        let riderRouteLayers = [];
+        async function showRiderRoute(latitude, longitude) {
+            if (storeLatitude === null || storeLongitude === null) return;
+
+            const start = [Number(latitude), Number(longitude)];
+            const end = [Number(storeLatitude), Number(storeLongitude)];
+            const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                const coordinates = result.routes?.[0]?.geometry?.coordinates;
+                if (!coordinates?.length) return;
+
+                riderRouteLayers.forEach(layer => storeRiderMap.removeLayer(layer));
+                const points = coordinates.map(([routeLongitude, routeLatitude]) => [routeLatitude, routeLongitude]);
+                riderRouteLayers = [
+                    L.polyline(points, { color: '#ffffff', weight: 10, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(storeRiderMap),
+                    L.polyline(points, { color: '#f97316', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(storeRiderMap),
+                ];
+                storeRiderMap.fitBounds(riderRouteLayers[1].getBounds(), { padding: [28, 28] });
+            } catch (error) {}
+        }
+
         if (storeLatitude && storeLongitude) {
             L.marker([storeLatitude, storeLongitude], { icon: yellowMarker('#facc15') }).addTo(storeRiderMap).bindPopup('Your store');
-            L.circle([storeLatitude, storeLongitude], { radius: 25000, color: '#eab308', weight: 1, fillColor: '#facc15', fillOpacity: 0.18 }).addTo(storeRiderMap);
         }
 
         @foreach($nearbyRiders as $rider)
             @if($rider->is_online && $rider->latitude && $rider->longitude)
-                L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#fbbf24') }).addTo(storeRiderMap).bindPopup(@json('Nearby rider: ' . ($rider->user->name ?? $rider->name) . '<br>Distance: ' . $rider->distance_km . ' km'));
+                (() => {
+                    const marker = L.marker([{{ $rider->latitude }}, {{ $rider->longitude }}], { icon: yellowMarker('#ef4444') }).addTo(storeRiderMap);
+                    marker.bindPopup(@json('Nearby rider: ' . ($rider->user->name ?? $rider->name) . '<br>Distance: ' . $rider->distance_km . ' km'));
+                    marker.on('click', () => showRiderRoute({{ $rider->latitude }}, {{ $rider->longitude }}));
+                })();
             @endif
         @endforeach
     </script>

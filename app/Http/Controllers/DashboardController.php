@@ -14,6 +14,45 @@ class DashboardController extends Controller
    public function index(){
 
       $posts=Post::with('user')->latest()->paginate(8);
+      $topStore = Store::query()
+         ->where('status', 'approved')
+         ->whereExists(fn ($query) => $query->selectRaw('1')->from('posts')->whereColumn('posts.user_id', 'stores.user_id'))
+         ->orderByDesc(Post::query()->selectRaw('COUNT(*)')->whereColumn('posts.user_id', 'stores.user_id'))
+         ->first();
+
+      $featuredProducts = Post::with('user')
+         ->when($topStore, fn ($query) => $query->where('user_id', $topStore->user_id))
+         ->latest()
+         ->limit(5)
+         ->get();
+
+      if ($featuredProducts->isEmpty()) {
+         $featuredProducts = Post::with('user')->latest()->limit(5)->get();
+      }
+
+      $featuredSlides = $featuredProducts->map(function (Post $post) use ($topStore) {
+         $fallbackImages = [
+            'pizza' => 'generated.jpg',
+            'burger' => 'front.avif',
+            'salad' => 'brown.jpg',
+            'drinks' => 'drink.webp',
+         ];
+         $image = $post->image
+            ? asset('storage/' . $post->image)
+            : asset('asset/' . ($fallbackImages[$post->category] ?? 'generated.jpg'));
+
+         return [
+            'id' => $post->id,
+            'title' => $post->title,
+            'description' => $post->description,
+            'category' => ucfirst($post->category ?? 'Featured'),
+            'price' => $post->price,
+            'store' => $topStore?->stores ?? ($post->user?->name ?? 'FoodStore picks'),
+            'image' => $image,
+            'url' => route('food.view', $post),
+         ];
+      });
+
       $orders = Order::with(['store.user', 'rider.user'])
          ->where(function ($query) {
             $query->where('customer_id', Auth::id())
@@ -41,7 +80,7 @@ class DashboardController extends Controller
          ->get()
          ->keyBy('order_id');
 
-      return view('users.dashboard', compact('posts', 'orders', 'stores', 'riders', 'ratings'));
+      return view('users.dashboard', compact('posts', 'orders', 'stores', 'riders', 'ratings', 'featuredSlides', 'topStore'));
    }
 
    public function liveRiderLocations()

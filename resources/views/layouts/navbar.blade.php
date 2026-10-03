@@ -29,6 +29,10 @@
             transition: background-color .25s ease, color .25s ease;
         }
 
+        .leaflet-tile-pane {
+            filter: grayscale(.78) saturate(.5) brightness(1.06);
+        }
+
         body.theme-dark {
             --page-bg: #111827;
             --surface: #1f2937;

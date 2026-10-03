@@ -32,7 +32,7 @@
         </section>
 
         <section class="mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
-            <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Live route view</p><h2 class="mt-1 text-xl font-black text-gray-900">Pickup points near your jobs</h2><p class="mt-1 text-sm text-gray-500">Store locations appear when sellers have shared their location.</p></div>
+            <div class="mb-4"><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Live route view</p><h2 class="mt-1 text-xl font-black text-gray-900">Pickup points near your jobs</h2><p class="mt-1 text-sm text-gray-500">Select a pickup marker to preview the road route from your location.</p></div>
             <div id="riderMap" class="h-64 overflow-hidden rounded-2xl bg-yellow-50 sm:h-80"></div>
         </section>
 
@@ -46,7 +46,10 @@
     const riderLatitude = @json($Rider->latitude);
     const riderLongitude = @json($Rider->longitude);
     const riderMap = L.map('riderMap').setView([riderLatitude || 6.5244, riderLongitude || 3.3792], riderLatitude ? 12 : 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(riderMap);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(riderMap);
 
     function yellowMarker(color = '#facc15') {
         return L.divIcon({
@@ -58,20 +61,51 @@
         });
     }
 
+    let pickupRouteLayers = [];
+    async function showPickupRoute(latitude, longitude) {
+        if (riderLatitude === null || riderLongitude === null) return;
+
+        const start = [Number(riderLatitude), Number(riderLongitude)];
+        const end = [Number(latitude), Number(longitude)];
+        const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+            const coordinates = result.routes?.[0]?.geometry?.coordinates;
+            if (!coordinates?.length) return;
+
+            pickupRouteLayers.forEach(layer => riderMap.removeLayer(layer));
+            const points = coordinates.map(([routeLongitude, routeLatitude]) => [routeLatitude, routeLongitude]);
+            pickupRouteLayers = [
+                L.polyline(points, { color: '#ffffff', weight: 10, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(riderMap),
+                L.polyline(points, { color: '#f97316', weight: 5, opacity: 1, lineCap: 'round', lineJoin: 'round' }).addTo(riderMap),
+            ];
+            riderMap.fitBounds(pickupRouteLayers[1].getBounds(), { padding: [28, 28] });
+        } catch (error) {}
+    }
+
     if (riderLatitude && riderLongitude) {
-        L.marker([riderLatitude, riderLongitude], { icon: L.divIcon({ className: 'custom-pin', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid #1d4ed8;box-shadow:0 0 0 2px rgba(255,255,255,0.8);"></span>', iconSize: [18,18], iconAnchor:[9,9], popupAnchor:[0,-10] }) }).addTo(riderMap).bindPopup('Your current location');
-        L.circle([riderLatitude, riderLongitude], { radius: 25000, color: '#eab308', weight: 1, fillColor: '#facc15', fillOpacity: 0.18 }).addTo(riderMap);
+        L.marker([riderLatitude, riderLongitude], { icon: L.divIcon({ className: 'custom-pin', html: '<span style="display:block;width:20px;height:20px;border-radius:50%;background:#ef4444;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.35);"></span>', iconSize: [20,20], iconAnchor:[10,10], popupAnchor:[0,-10] }) }).addTo(riderMap).bindPopup('Your current location');
     }
 
     @foreach($orders as $order)
         @if($order->store && $order->store->latitude && $order->store->longitude)
-            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap).bindPopup(@json('Pickup: ' . $order->store->stores));
+            (() => {
+                const marker = L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap);
+                marker.bindPopup(@json('Pickup: ' . $order->store->stores));
+                marker.on('click', () => showPickupRoute({{ $order->store->latitude }}, {{ $order->store->longitude }}));
+            })();
         @endif
     @endforeach
 
     @foreach($nearbyOrders as $order)
         @if($order->store && $order->store->latitude && $order->store->longitude)
-            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#f97316') }).addTo(riderMap).bindPopup(@json('Nearby order: ' . $order->store->stores . ' · ' . $order->distance_km . ' km'));
+            (() => {
+                const marker = L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}], { icon: yellowMarker('#facc15') }).addTo(riderMap);
+                marker.bindPopup(@json('Nearby order: ' . $order->store->stores . ' · ' . $order->distance_km . ' km'));
+                marker.on('click', () => showPickupRoute({{ $order->store->latitude }}, {{ $order->store->longitude }}));
+            })();
         @endif
     @endforeach
 

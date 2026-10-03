@@ -52,4 +52,8 @@ return [
         'radius_km' => (float) env('RIDER_ORDER_RADIUS_KM', 25),
     ],
 
+    'paystack' => [
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+    ],
+
 ];
