@@ -171,6 +171,36 @@ class AuthController extends Controller
       );
    }
 
+   public function editManagedUser(User $user)
+   {
+      return view('admin.edit-user', compact('user'));
+   }
+
+   public function updateManagedUser(Request $request, User $user)
+   {
+      $validated = $request->validate([
+         'name' => ['required', 'string', 'max:255'],
+         'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+         'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+      ]);
+
+      $user->name = $validated['name'];
+      $user->email = $validated['email'];
+      if (!empty($validated['password'])) {
+         $user->password = Hash::make($validated['password']);
+      }
+      $user->save();
+
+      return redirect()->route('manage.index')->with('success', 'User updated successfully.');
+   }
+
+   public function destroyUser(User $user)
+   {
+      $user->delete();
+
+      return back()->with('success', 'User deleted successfully.');
+   }
+
 public function showrider(){
      $Riders=Rider::latest()->get();
      return view('admin.riders',compact('Riders'));
