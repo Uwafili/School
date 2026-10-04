@@ -4,12 +4,115 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\Rider;
+use App\Models\User;
 use App\Models\ApprovalNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
+    public function createManagedUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        ]);
+
+        $user = $this->createManagedAccount($validated['name'], $validated['email']);
+
+        return $this->sendSetupLink($user, 'manage.index', 'User account created.');
+    }
+
+    public function createManagedRider(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'max:15', 'regex:/^\\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'license' => ['required', 'string', 'max:255'],
+            'vehicle_number' => ['required', 'max:15', 'regex:/^\\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'vehicle' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = DB::transaction(function () use ($validated) {
+            $user = $this->createManagedAccount($validated['name'], $validated['email']);
+
+            Rider::create([
+                'user_id' => $user->id,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'license' => $validated['license'],
+                'vehicle_number' => $validated['vehicle_number'],
+                'vehicle' => $validated['vehicle'],
+                'status' => 'pending',
+            ]);
+
+            return $user;
+        });
+
+        return $this->sendSetupLink($user, 'riders', 'Rider account created and submitted for approval.');
+    }
+
+    public function createManagedStore(Request $request)
+    {
+        $validated = $request->validate([
+            'stores' => ['required', 'string', 'max:255'],
+            'owner' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'max:15', 'regex:/^\\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'address' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = DB::transaction(function () use ($validated) {
+            $user = $this->createManagedAccount($validated['owner'], $validated['email']);
+
+            Store::create([
+                'user_id' => $user->id,
+                'stores' => $validated['stores'],
+                'owner' => $validated['owner'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'],
+                'address' => $validated['address'],
+                'status' => 'pending',
+            ]);
+
+            return $user;
+        });
+
+        return $this->sendSetupLink($user, 'storeapprove', 'Store owner account created and submitted for approval.');
+    }
+
+    private function createManagedAccount(string $name, string $email): User
+    {
+        return User::create([
+            'name' => $name,
+            'email' => $email,
+            'password' => Str::random(48),
+            'usertype' => 'user',
+        ]);
+    }
+
+    private function sendSetupLink(User $user, string $route, string $message)
+    {
+        try {
+            $status = Password::sendResetLink(['email' => $user->email]);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return redirect()->route($route)->with('warning', $message.' Password setup email could not be sent; use Reset key to retry.');
+        }
+
+        if ($status !== Password::RESET_LINK_SENT) {
+            return redirect()->route($route)->with('warning', $message.' Password setup email could not be sent; use Reset key to retry.');
+        }
+
+        return redirect()->route($route)->with('success', $message.' A password setup link was sent.');
+    }
+
     /**
      * Display all stores for admin approval
      */

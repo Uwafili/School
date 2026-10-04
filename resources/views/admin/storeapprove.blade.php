@@ -37,6 +37,20 @@
             </div>
         </div>
 
+        <section class="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 class="mb-1 text-xl font-bold text-gray-800">Quick sign up: Store owner</h2>
+            <p class="mb-4 text-sm text-gray-600">The store will be pending approval. A password setup link will be sent to the owner.</p>
+            <form action="{{ route('admin.stores.store') }}" method="POST" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                @csrf
+                <div><label for="store-name" class="mb-1 block text-sm font-semibold">Store name</label><input id="store-name" name="stores" value="{{ old('stores') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('stores')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                <div><label for="store-owner" class="mb-1 block text-sm font-semibold">Owner name</label><input id="store-owner" name="owner" value="{{ old('owner') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('owner')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                <div><label for="store-email" class="mb-1 block text-sm font-semibold">Owner email</label><input id="store-email" name="email" type="email" value="{{ old('email') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                <div><label for="store-phone" class="mb-1 block text-sm font-semibold">Phone</label><input id="store-phone" name="phone" value="{{ old('phone') }}" required maxlength="15" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                <div class="md:col-span-2"><label for="store-address" class="mb-1 block text-sm font-semibold">Address</label><input id="store-address" name="address" value="{{ old('address') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                <div class="md:col-span-2 xl:col-span-3"><button type="submit" class="rounded-lg bg-yellow-500 px-5 py-2 font-bold text-white hover:bg-yellow-600">Create store owner</button></div>
+            </form>
+        </section>
+
         <!-- Tabs for filtering -->
         <div class="bg-white rounded-lg shadow mb-8 overflow-hidden">
             <div class="flex border-b border-gray-200">

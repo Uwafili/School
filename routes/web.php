@@ -116,6 +116,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::delete('/admin/Post/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     
     Route::get('/manage', [AuthController::class, 'manageUsers'])->name('manage.index');
+    Route::post('/manage', [AdminController::class, 'createManagedUser'])->name('admin.users.store');
     Route::get('/admin/manage/{user}/edit', [AuthController::class, 'editManagedUser'])->name('user.edit');
     Route::put('/admin/manage/{user}', [AuthController::class, 'updateManagedUser'])->name('user.update');
     Route::post('/admin/manage/{user}/password-reset', [AuthController::class, 'sendUserPasswordResetLink'])->name('user.password-reset');
@@ -124,6 +125,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     
     Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');
     Route::get('/riders',[AuthController::class,'showrider'])->name('riders');
+    Route::post('/riders', [AdminController::class, 'createManagedRider'])->name('admin.riders.store');
     Route::get('/riders/{rider}/edit', [AdminController::class, 'editRider'])->name('riders.edit');
     Route::put('/riders/{rider}', [AdminController::class, 'updateRider'])->name('riders.update');
 
@@ -135,6 +137,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
 
      // Store Approval Routes
      Route::get('/storeapprove', [AdminController::class, 'storeApprove'])->name('storeapprove');
+    Route::post('/storeapprove', [AdminController::class, 'createManagedStore'])->name('admin.stores.store');
      Route::post('/approve/store/{store}', [AdminController::class, 'approveStore'])->name('store.approve');
      Route::post('/reject/store/{store}', [AdminController::class, 'rejectStore'])->name('store.reject');
     Route::get('/storeapprove/{store}/edit', [AdminController::class, 'editStore'])->name('stores.edit');

@@ -10,6 +10,26 @@
             {{ session('success') }}
         </div>
     @endif
+    @if(session('warning'))
+        <div class="mb-4 bg-amber-100 text-amber-900 px-4 py-3 rounded-lg">
+            {{ session('warning') }}
+        </div>
+    @endif
+
+    <section class="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <h2 class="mb-1 text-xl font-bold text-gray-800">Quick sign up: Rider</h2>
+        <p class="mb-4 text-sm text-gray-600">The rider application will be pending approval. A password setup link will be sent to the rider.</p>
+        <form action="{{ route('admin.riders.store') }}" method="POST" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            @csrf
+            <div><label for="rider-name" class="mb-1 block text-sm font-semibold">Name</label><input id="rider-name" name="name" value="{{ old('name') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div><label for="rider-email" class="mb-1 block text-sm font-semibold">Email</label><input id="rider-email" name="email" type="email" value="{{ old('email') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div><label for="rider-phone" class="mb-1 block text-sm font-semibold">Phone</label><input id="rider-phone" name="phone" value="{{ old('phone') }}" required maxlength="15" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('phone')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div><label for="rider-license" class="mb-1 block text-sm font-semibold">License</label><input id="rider-license" name="license" value="{{ old('license') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('license')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div><label for="rider-vehicle-number" class="mb-1 block text-sm font-semibold">Vehicle number</label><input id="rider-vehicle-number" name="vehicle_number" value="{{ old('vehicle_number') }}" required maxlength="15" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('vehicle_number')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div><label for="rider-vehicle" class="mb-1 block text-sm font-semibold">Vehicle</label><input id="rider-vehicle" name="vehicle" value="{{ old('vehicle') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('vehicle')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+            <div class="md:col-span-2 xl:col-span-3"><button type="submit" class="rounded-lg bg-yellow-500 px-5 py-2 font-bold text-white hover:bg-yellow-600">Create rider</button></div>
+        </form>
+    </section>
 
     <div class="overflow-x-auto bg-white shadow-md rounded-xl">
         <table class="min-w-full text-left text-gray-700">

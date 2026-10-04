@@ -26,7 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             $isDatabaseFailure = $exception instanceof QueryException
             || $exception instanceof \PDOException;
 
-            if (!$isDatabaseFailure && $exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+            if (!$isDatabaseFailure && (
+                $exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $exception instanceof \Illuminate\Auth\AuthenticationException
+            )) {
                 return null;
             }
 

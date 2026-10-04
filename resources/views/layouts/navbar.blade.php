@@ -33,6 +33,12 @@
             filter: grayscale(.78) saturate(.5) brightness(1.06);
         }
 
+        .leaflet-container {
+            position: relative;
+            z-index: 0;
+            isolation: isolate;
+        }
+
         body.theme-dark {
             --page-bg: #111827;
             --surface: #1f2937;
@@ -728,6 +734,19 @@
 
 
 
+    <aside id="cookie-consent" class="fixed inset-x-0 bottom-0 z-[60] hidden px-4 pb-4" role="dialog" aria-labelledby="cookie-consent-title" aria-describedby="cookie-consent-description">
+        <div class="mx-auto flex max-w-5xl flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+            <div class="max-w-2xl">
+                <h2 id="cookie-consent-title" class="text-base font-bold text-gray-900 dark:text-white">Cookie preferences</h2>
+                <p id="cookie-consent-description" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Essential cookies keep sign-in and security working. Choose whether to allow optional cookies; essential cookies remain active either way.</p>
+            </div>
+            <div class="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
+                <button type="button" data-cookie-choice="rejected" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">Reject optional</button>
+                <button type="button" data-cookie-choice="accepted" class="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-gray-900 transition hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-600">Accept cookies</button>
+            </div>
+        </div>
+    </aside>
+
     @yield('content')
 
     @include('layouts.footer')
@@ -763,6 +782,38 @@
             }, function () {});
         }());
         @endauth
+
+        (function () {
+            const cookieName = 'foodstore_cookie_consent';
+            const banner = document.getElementById('cookie-consent');
+            const settingsButton = document.getElementById('cookie-settings-open');
+            const hasSavedChoice = document.cookie.split(';').some(function (cookie) {
+                return cookie.trim().startsWith(cookieName + '=');
+            });
+
+            function showBanner() {
+                banner.classList.remove('hidden');
+            }
+
+            function saveChoice(choice) {
+                let value = cookieName + '=' + choice + '; Max-Age=31536000; Path=/; SameSite=Lax';
+                if (window.location.protocol === 'https:') value += '; Secure';
+                document.cookie = value;
+                banner.classList.add('hidden');
+            }
+
+            if (!hasSavedChoice) showBanner();
+
+            banner.querySelectorAll('[data-cookie-choice]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    saveChoice(button.dataset.cookieChoice);
+                });
+            });
+
+            if (settingsButton) {
+                settingsButton.addEventListener('click', showBanner);
+            }
+        }());
 
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('page-loader').style.opacity = '1';

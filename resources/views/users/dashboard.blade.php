@@ -15,7 +15,7 @@
                         </h1>
                     </div>
                 </div>
-                <a href="#settings"
+                <a href="{{ route('profile.edit') }}"
                     class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:text-yellow-600"
                     aria-label="Open account settings">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"
@@ -206,7 +206,7 @@
                 <div class="grid gap-6 md:grid-cols-2">
                     <div>
                         <h3 class="mb-2 px-1 text-xs font-black text-gray-900">General</h3>
-                        <div class="overflow-hidden rounded-2xl bg-gray-50"><a href="#"
+                        <div class="overflow-hidden rounded-2xl bg-gray-50"><a href="{{ route('profile.edit') }}"
                                 class="flex items-center gap-3 border-b border-gray-100 px-4 py-3.5 transition hover:bg-yellow-50"><span
                                     class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-600">◎</span><span
                                     class="flex-1 text-sm font-semibold text-gray-700">Profile details</span><span

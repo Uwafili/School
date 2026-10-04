@@ -81,7 +81,7 @@
             <div class="flex flex-wrap gap-4 justify-center md:justify-end">
                 <a href="#" class="text-gray-300 hover:text-yellow-400 transition text-xs sm:text-sm">Privacy Policy</a>
                 <a href="#" class="text-gray-300 hover:text-yellow-400 transition text-xs sm:text-sm">Terms of Service</a>
-                <a href="#" class="text-gray-300 hover:text-yellow-400 transition text-xs sm:text-sm">Cookie Policy</a>
+                <button type="button" id="cookie-settings-open" class="text-gray-300 hover:text-yellow-400 transition text-xs sm:text-sm">Cookie settings</button>
             </div>
         </div>
 
