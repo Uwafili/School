@@ -667,10 +667,16 @@
                 </svg>
                 <span>Home</span>
             </a>
-            <a href="{{ route('cart') }}" class="phone-nav-link" aria-label="Cart">
-                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l1.2 10.2a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 1.9-1.4L20 7H6M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm8 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
-                </svg>
+            @php $phoneCartCount = collect(session()->get('cart', []))->sum('quantity'); @endphp
+            <a href="{{ route('cart') }}" class="phone-nav-link" aria-label="Cart, {{ $phoneCartCount }} items">
+                <span class="relative">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l1.2 10.2a2 2 0 0 0 2 1.8h7.6a2 2 0 0 0 1.9-1.4L20 7H6M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm8 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+                    </svg>
+                    @if($phoneCartCount > 0)
+                        <span class="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-black leading-none text-white">{{ $phoneCartCount }}</span>
+                    @endif
+                </span>
                 <span>Cart</span>
             </a>
             <button type="button" @click="openFood = !openFood" class="phone-nav-link phone-nav-featured" aria-label="Categories">
@@ -730,7 +736,16 @@
     </div>
     <!-- Floating message icons (yellow) -->
 
-
+    @if(session('cart_added'))
+        <aside id="cart-added-toast" role="status" aria-live="polite" class="fixed inset-x-3 bottom-[5.25rem] z-[70] mx-auto flex max-w-md items-center gap-3 rounded-xl border border-green-200 bg-white p-4 text-gray-900 shadow-xl transition-all duration-300 sm:inset-x-auto sm:bottom-4 sm:right-4">
+            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green-100 text-green-700" aria-hidden="true">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6" /></svg>
+            </span>
+            <p class="min-w-0 flex-1 text-sm font-semibold">{{ session('cart_added') }}</p>
+            <a href="{{ route('cart') }}" class="shrink-0 text-sm font-bold text-green-700 underline underline-offset-2">View cart</a>
+            <button type="button" data-dismiss-cart-toast aria-label="Dismiss cart notification" class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-500 hover:bg-gray-100">&times;</button>
+        </aside>
+    @endif
 
 
 
@@ -782,6 +797,17 @@
             }, function () {});
         }());
         @endauth
+
+        const cartToast = document.getElementById('cart-added-toast');
+        if (cartToast) {
+            const dismissCartToast = function () {
+                cartToast.classList.add('translate-y-2', 'opacity-0');
+                window.setTimeout(function () { cartToast.remove(); }, 300);
+            };
+
+            cartToast.querySelector('[data-dismiss-cart-toast]').addEventListener('click', dismissCartToast);
+            window.setTimeout(dismissCartToast, 5000);
+        }
 
         (function () {
             const cookieName = 'foodstore_cookie_consent';

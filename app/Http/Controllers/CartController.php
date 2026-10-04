@@ -26,7 +26,7 @@ class CartController extends Controller
                 ];
          }  
          session()->put('cart', $cart);                    
-         return back()->with('success', 'Item added to cart!');
+         return back()->with('cart_added', $posts->title . ' added to your cart.');
         }
 
          public function increase($id)

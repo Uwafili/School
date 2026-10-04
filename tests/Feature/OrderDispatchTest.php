@@ -17,6 +17,30 @@ class OrderDispatchTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_adding_food_shows_a_cart_notification(): void
+    {
+        $customer = User::factory()->create();
+        $seller = User::factory()->create();
+        $post = Post::create([
+            'user_id' => $seller->id,
+            'title' => 'Jollof Rice',
+            'description' => 'A test dish',
+            'price' => '1500',
+            'category' => 'pizza',
+        ]);
+
+        $this->actingAs($customer)
+            ->from(route('dashboard'))
+            ->post(route('add.cart', $post->id))
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('cart_added', 'Jollof Rice added to your cart.');
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Jollof Rice added to your cart.')
+            ->assertSee('Cart, 1 items', false);
+    }
+
     public function test_store_owner_is_notified_when_an_order_is_created(): void
     {
         $owner = User::factory()->create();
@@ -204,6 +228,34 @@ class OrderDispatchTest extends TestCase
             ->assertSee('Find something delicious today.')
             ->assertSee('aria-roledescription="carousel"', false)
             ->assertSee('background-image: linear-gradient', false);
+    }
+
+    public function test_customer_dashboard_paginates_popular_food_eight_at_a_time(): void
+    {
+        $customer = User::factory()->create();
+        $seller = User::factory()->create();
+
+        foreach (range(1, 9) as $number) {
+            Post::create([
+                'user_id' => $seller->id,
+                'title' => 'Pagination dish ' . $number,
+                'description' => 'A test dish',
+                'price' => '1500',
+                'category' => 'pizza',
+            ]);
+        }
+
+        $this->actingAs($customer)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Showing 1 to 8 of 9')
+            ->assertSee('page=2#food-feed', false)
+            ->assertViewHas('posts', fn ($posts) => $posts->count() === 8 && $posts->total() === 9);
+
+        $this->get(route('dashboard', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('Showing 9 to 9 of 9')
+            ->assertViewHas('posts', fn ($posts) => $posts->count() === 1 && $posts->currentPage() === 2);
     }
 
     public function test_food_hero_slides_feature_products_from_the_top_approved_store(): void

@@ -152,7 +152,7 @@
                     <div>
                         <p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Fresh from sellers</p>
                         <h2 class="mt-1 text-2xl font-black text-gray-900">Popular food</h2>
-                    </div><span class="text-sm font-bold text-gray-400">{{ $posts->count() }} available</span>
+                    </div><span class="text-sm font-bold text-gray-400">Showing {{ $posts->firstItem() ?? 0 }} to {{ $posts->lastItem() ?? 0 }} of {{ $posts->total() }}</span>
                 </div>
                 @if($posts->isEmpty())
                     <div class="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-gray-100">

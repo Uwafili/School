@@ -13,7 +13,7 @@ class DashboardController extends Controller
 {
    public function index(){
 
-      $posts=Post::with('user')->latest()->paginate(8);
+      $posts = Post::with('user')->latest()->paginate(8)->fragment('food-feed');
       $topStore = Store::query()
          ->where('status', 'approved')
          ->whereExists(fn ($query) => $query->selectRaw('1')->from('posts')->whereColumn('posts.user_id', 'stores.user_id'))
