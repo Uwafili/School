@@ -373,7 +373,8 @@
         class="site-nav transition-colors duration-300">
         @php
             $isAdmin = Auth::check() && Auth::user()->usertype === 'admin';
-            $userStore = Auth::check() ? \App\Models\Store::where('user_id', Auth::id())->where('status', 'approved')->first() : null;
+            $userStore = Auth::check() ? \App\Models\Store::where('user_id', Auth::id())->latest()->first() : null;
+            $storeIsApproved = $userStore && $userStore->status === 'approved';
             $userRider = Auth::check() ? \App\Models\Rider::where('user_id', Auth::id())->where('status', 'approved')->first() : null;
             $activeRole = $isAdmin ? 'admin' : session('active_role', 'user');
             if (! $isAdmin && $activeRole === 'rider' && ! $userRider) {
@@ -437,13 +438,13 @@
 
                         <!-- Shop Owner Dashboard -->
                         @if($userStore && ($isAdmin || $activeRole === 'user' || $activeRole === 'store'))
-                            <a href="{{ route('storedashboard') }}"
+                            <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}"
                                 :class="darkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'"
                                 class="nav-pill bg-orange-500 text-white hover:bg-orange-600 flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
                                 </svg>
-                                Store
+                                {{ $storeIsApproved ? 'Store' : 'Store application' }}
                             </a>
                         @endif
 
@@ -565,8 +566,8 @@
 
                     <!-- Mobile Store Dashboard -->
                     @if($userStore && ($isAdmin || $activeRole === 'user' || $activeRole === 'store'))
-                        <a href="{{ route('storedashboard') }}"
-                            class="mobile-link bg-orange-500 text-white hover:bg-orange-600">Store Dashboard</a>
+                        <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}"
+                            class="mobile-link bg-orange-500 text-white hover:bg-orange-600">{{ $storeIsApproved ? 'Store Dashboard' : 'Store application' }}</a>
                     @endif
 
                     <!-- Mobile Rider Dashboard -->
@@ -602,7 +603,7 @@
                     @elseif($activeRole === 'rider')
                         <a href="{{ route('rider.dashboard') }}" class="mobile-link">Rider Dashboard</a>
                     @else
-                        <a href="{{ route('storedashboard') }}" class="mobile-link">Store Dashboard</a>
+                        <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}" class="mobile-link">{{ $storeIsApproved ? 'Store Dashboard' : 'Store application' }}</a>
                     @endif
 
                     <form method="POST" action="{{ route('logout') }}">
@@ -694,6 +695,14 @@
                 <span>About</span>
             </a>
             @endif
+            @if($userStore && $activeRole === 'store')
+                <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}" class="phone-nav-link" aria-label="{{ $storeIsApproved ? 'Store dashboard' : 'Store application' }}">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18l-1.5-6h-15L3 10Zm1 0v10h16V10M9 20v-6h6v6" />
+                    </svg>
+                    <span>Store</span>
+                </a>
+            @endif
             @auth
                 <button type="button" @click="dashboardMenu = !dashboardMenu" class="phone-nav-link" aria-label="Open dashboard menu" :aria-expanded="dashboardMenu.toString()">
                     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
@@ -709,7 +718,7 @@
                         <a href="{{ route('rider.dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">Rider Dashboard</a>
                         <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="user"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left text-yellow-700 dark:border-gray-700 dark:text-yellow-300">Switch to User View</button></form>
                     @elseif($activeRole === 'store')
-                        <a href="{{ route('storedashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">Store Dashboard</a>
+                        <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">{{ $storeIsApproved ? 'Store Dashboard' : 'Store application' }}</a>
                         <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="user"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left text-yellow-700 dark:border-gray-700 dark:text-yellow-300">Switch to User View</button></form>
                     @else
                         <a href="{{ route('dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">My Dashboard</a>

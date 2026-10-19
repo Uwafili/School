@@ -13,12 +13,19 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 
 class PaymentController extends Controller
 {
     public function checkout(Request $request)
     {
         $cart = $request->session()->get('cart', []);
+        if (!is_array($cart) || !$this->cartItemsAreValid($cart)) {
+            $request->session()->forget('cart');
+
+            return redirect()->route('cart')->with('error', 'Your cart could not be loaded. Please add your items again.');
+        }
+
         $subtotal = collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
         $deliveryFee = $this->deliveryFee(Auth::user()?->latitude, Auth::user()?->longitude);
 
@@ -42,6 +49,12 @@ class PaymentController extends Controller
         ]);
 
         $cart = $request->session()->get('cart', []);
+        if (!is_array($cart) || !$this->cartItemsAreValid($cart)) {
+            $request->session()->forget('cart');
+
+            return redirect()->route('cart')->with('error', 'Your cart could not be loaded. Please add your items again.');
+        }
+
         if (empty($cart)) {
             return redirect()->route('cart')->with('error', 'Your cart is empty.');
         }
@@ -96,6 +109,22 @@ class PaymentController extends Controller
         ]);
 
         return redirect()->away($authorizationUrl);
+    }
+
+    private function cartItemsAreValid(array $cart): bool
+    {
+        if ($cart === []) {
+            return true;
+        }
+
+        return Validator::make(['cart' => $cart], [
+            'cart' => ['required', 'array'],
+            'cart.*' => ['required', 'array'],
+            'cart.*.title' => ['required', 'string', 'max:255'],
+            'cart.*.price' => ['required', 'numeric', 'min:0', 'max:100000000'],
+            'cart.*.quantity' => ['required', 'integer', 'min:1', 'max:100'],
+            'cart.*.store_id' => ['nullable', 'integer'],
+        ])->passes();
     }
 
     private function deliveryFee(?float $latitude, ?float $longitude): float
@@ -270,5 +299,4 @@ class PaymentController extends Controller
 
 
 }
-
 

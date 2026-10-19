@@ -17,20 +17,24 @@
         @if(session('error'))
             <div class="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{{ session('error') }}</div>
         @endif
+        @if($errors->any())
+            <div class="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{{ $errors->first() }}</div>
+        @endif
 
         <form id="checkoutForm" action="{{ route('payment.pay') }}" method="POST" class="grid gap-6 lg:grid-cols-[1fr_20rem]">
             @csrf
             <input type="hidden" name="amount" value="{{ $grandTotal }}">
-            <input type="hidden" name="delivery_address" id="deliveryAddress">
             <input type="hidden" name="pickup_location" id="pickupLocation">
             <div class="space-y-5">
                 <section class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-7">
                     <div class="mb-5 flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-widest text-teal-600">01</p><h2 class="mt-1 text-lg font-black text-gray-900">Shipping address</h2></div><span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">Required</span></div>
                     <div id="deliveryCard" class="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
-                        <div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-500 text-white">⌖</span><div class="min-w-0 flex-1"><p class="text-sm font-black text-gray-800">Your current location</p><p id="locationStatus" class="mt-1 text-xs leading-5 text-gray-500">Choose delivery below and we will detect your address.</p></div><button type="button" id="detectLocation" class="shrink-0 text-xs font-black text-teal-700 hover:text-teal-900">Detect</button></div>
+                        <div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-500 text-white">⌖</span><div class="min-w-0 flex-1"><p class="text-sm font-black text-gray-800">Your delivery location</p><p id="locationStatus" class="mt-1 text-xs leading-5 text-gray-500">Choose door delivery and detect your address, or enter it below.</p></div><button type="button" id="detectLocation" class="shrink-0 text-xs font-black text-teal-700 hover:text-teal-900">Detect</button></div>
+                        <label for="deliveryAddress" class="mt-4 block text-xs font-bold text-gray-700">Delivery address</label>
+                        <input type="text" name="delivery_address" id="deliveryAddress" value="{{ old('delivery_address') }}" maxlength="1000" autocomplete="street-address" class="mt-1 w-full rounded-xl border border-teal-200 bg-white px-3 py-3 text-sm text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200" placeholder="Enter your delivery address">
                     </div>
-                    <div class="mt-5"><h3 class="mb-3 text-sm font-black text-gray-800">Delivery method</h3><div class="grid gap-3 sm:grid-cols-2"><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input id="deliveryRadio" type="radio" name="delivery_method" value="location" required class="text-teal-600"><span><strong class="block text-sm text-gray-800">Door delivery</strong><small class="text-xs text-gray-500">Use my current location</small></span></label><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input id="pickupRadio" type="radio" name="delivery_method" value="pickup" class="text-teal-600"><span><strong class="block text-sm text-gray-800">Pick up order</strong><small class="text-xs text-gray-500">Find the nearest station</small></span></label></div></div>
-                    <div id="pickupBox" class="mt-4 hidden rounded-2xl border border-teal-200 bg-teal-50 p-4"><div class="flex items-center gap-3"><span class="grid h-9 w-9 place-items-center rounded-full bg-teal-500 text-white">⌖</span><div><p class="text-sm font-black text-gray-800">Nearest pickup station</p><p id="pickupStatus" class="mt-1 text-xs text-gray-500">Finding a station near you...</p></div></div><select id="pickupStation" name="pickup_station" class="mt-4 w-full rounded-xl border-teal-200 bg-white px-3 py-3 text-sm focus:border-teal-500 focus:ring-teal-300"><option value="">Select station</option><option value="ikeja" data-lat="6.6018" data-lng="3.3515">Ikeja Hub</option><option value="lekki" data-lat="6.4698" data-lng="3.5852">Lekki Pickup</option><option value="abuja" data-lat="9.0765" data-lng="7.3986">Abuja Central</option></select></div>
+                    <div class="mt-5"><h3 class="mb-3 text-sm font-black text-gray-800">Delivery method</h3><div class="grid gap-3 sm:grid-cols-2"><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input id="deliveryRadio" type="radio" name="delivery_method" value="location" required class="text-teal-600" @checked(old('delivery_method') === 'location')><span><strong class="block text-sm text-gray-800">Door delivery</strong><small class="text-xs text-gray-500">Use my current location</small></span></label><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 p-4 transition has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50"><input id="pickupRadio" type="radio" name="delivery_method" value="pickup" class="text-teal-600" @checked(old('delivery_method') === 'pickup')><span><strong class="block text-sm text-gray-800">Pick up order</strong><small class="text-xs text-gray-500">Find the nearest station</small></span></label></div></div>
+                    <div id="pickupBox" class="mt-4 hidden rounded-2xl border border-teal-200 bg-teal-50 p-4"><div class="flex items-center gap-3"><span class="grid h-9 w-9 place-items-center rounded-full bg-teal-500 text-white">⌖</span><div><p class="text-sm font-black text-gray-800">Nearest pickup station</p><p id="pickupStatus" class="mt-1 text-xs text-gray-500">Finding a station near you...</p></div></div><select id="pickupStation" name="pickup_station" class="mt-4 w-full rounded-xl border-teal-200 bg-white px-3 py-3 text-sm focus:border-teal-500 focus:ring-teal-300"><option value="">Select station</option><option value="ikeja" data-lat="6.6018" data-lng="3.3515" @selected(old('pickup_station') === 'ikeja')>Ikeja Hub</option><option value="lekki" data-lat="6.4698" data-lng="3.5852" @selected(old('pickup_station') === 'lekki')>Lekki Pickup</option><option value="abuja" data-lat="9.0765" data-lng="7.3986" @selected(old('pickup_station') === 'abuja')>Abuja Central</option></select></div>
                 </section>
 
                 <section class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-7"><div class="mb-5"><p class="text-xs font-black uppercase tracking-widest text-teal-600">02</p><h2 class="mt-1 text-lg font-black text-gray-900">Payment method</h2></div><label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-teal-500 bg-teal-50 p-4"><input type="radio" name="payment_method" value="paystack" checked required class="text-teal-600"><span class="grid h-8 w-8 place-items-center rounded-lg bg-red-50 text-xs font-black text-red-600">P</span><span class="flex-1"><strong class="block text-sm font-bold text-gray-800">Paystack</strong><small class="text-xs text-gray-500">Secure online payment</small></span></label></section>
@@ -93,8 +97,33 @@
         deliveryFeeText.textContent = `₦${fee.toLocaleString()}`;
         grandTotalText.textContent = `₦${(subtotalValue + fee).toLocaleString()}`;
     }
-    deliveryRadio.addEventListener('change', () => { pickupBox.classList.add('hidden'); pickupLocation.value = ''; updateFee(false); detectPosition('delivery'); });
-    pickupRadio.addEventListener('change', () => { pickupBox.classList.remove('hidden'); deliveryAddress.value = ''; updateFee(true); detectPosition('pickup'); });
+    deliveryRadio.addEventListener('change', () => {
+        pickupBox.classList.add('hidden');
+        pickupStation.disabled = true;
+        pickupStation.required = false;
+        deliveryAddress.disabled = false;
+        deliveryAddress.required = true;
+        pickupLocation.value = '';
+        updateFee(false);
+        detectPosition('delivery');
+    });
+    pickupRadio.addEventListener('change', () => {
+        pickupBox.classList.remove('hidden');
+        deliveryAddress.value = '';
+        deliveryAddress.disabled = true;
+        deliveryAddress.required = false;
+        pickupStation.disabled = false;
+        pickupStation.required = true;
+        updateFee(true);
+        detectPosition('pickup');
+    });
+    pickupStation.disabled = true;
+    deliveryAddress.disabled = true;
+    if (pickupRadio.checked) {
+        pickupRadio.dispatchEvent(new Event('change'));
+    } else if (deliveryRadio.checked) {
+        deliveryRadio.dispatchEvent(new Event('change'));
+    }
     document.getElementById('detectLocation').addEventListener('click', () => detectPosition(deliveryRadio.checked ? 'delivery' : 'pickup'));
 </script>
 @endsection

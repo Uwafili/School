@@ -50,14 +50,19 @@ class AuthController extends Controller
                   $activeRole = 'admin';
                } elseif (Rider::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()) {
                   $activeRole = 'rider';
-               } elseif (Store::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()) {
+               } elseif (Store::where('user_id', $signedInUser->id)->exists()) {
                   $activeRole = 'store';
                }
                $request->session()->put('active_role', $activeRole);
 
-               $destination = Auth::user()->usertype === 'admin'
-                  ? route('admin.dashboard')
-                  : route('dashboard');
+               $destination = match ($activeRole) {
+                  'admin' => route('admin.dashboard'),
+                  'rider' => route('rider.dashboard'),
+                  'store' => Store::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()
+                     ? route('storedashboard')
+                     : route('store.create'),
+                  default => route('dashboard'),
+               };
 
                return redirect()->intended($destination);
          }
@@ -125,7 +130,7 @@ class AuthController extends Controller
          $request->session()->put('active_role', 'admin');
       } elseif ($role === 'rider' && Rider::where('user_id', $user->id)->where('status', 'approved')->exists()) {
          $request->session()->put('active_role', 'rider');
-      } elseif ($role === 'store' && Store::where('user_id', $user->id)->where('status', 'approved')->exists()) {
+      } elseif ($role === 'store' && Store::where('user_id', $user->id)->exists()) {
          $request->session()->put('active_role', 'store');
       } else {
          $request->session()->put('active_role', 'user');
