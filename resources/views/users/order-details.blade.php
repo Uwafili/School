@@ -3,9 +3,9 @@
 @section('content')
 @php
     $workflowSteps = [
-        'pending' => 'Placed',
-        'approved' => 'Approved',
-        'preparing' => 'Preparing',
+        'pending' => 'Order placed',
+        'approved' => 'Approved by store',
+        'preparing' => 'Being prepared',
         'ready_for_pickup' => 'Ready for pickup',
         'rider_assigned' => 'Rider assigned',
         'picked_up' => 'Picked up',
@@ -24,8 +24,9 @@
             <p class="mt-1 text-sm text-gray-500">Placed {{ $order->created_at->format('M j, Y · g:i A') }}</p>
 
             <dl class="mt-6 grid gap-3 sm:grid-cols-2">
-                <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Store</dt><dd class="mt-1 font-bold text-gray-900">{{ $order->store->stores }}</dd></div>
+                <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Store</dt><dd class="mt-1 font-bold text-gray-900">{{ $order->store->stores }}</dd><dd class="mt-1 text-sm text-gray-600">{{ $order->store->address }}</dd>@if($order->store->phone)<dd class="mt-1 text-sm text-gray-600">{{ $order->store->phone }}</dd>@endif</div>
                 <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Order status</dt><dd class="mt-1 font-bold text-gray-900">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</dd></div>
+                <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Estimated delivery</dt><dd class="mt-1 font-bold text-gray-900">{{ $order->estimated_delivery_at?->format('M j, Y · g:i A') ?? 'Not available yet' }}</dd></div>
                 <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Store approval</dt><dd class="mt-1 font-bold text-gray-900">{{ ucfirst($order->store_approval_status) }}</dd></div>
                 <div class="rounded-xl bg-gray-50 p-4"><dt class="text-xs font-bold uppercase text-gray-500">Payment</dt><dd class="mt-1 font-bold text-gray-900">{{ ucfirst(str_replace('_', ' ', $order->payment_status)) }} · {{ ucfirst($order->payment_method ?? 'Not specified') }}</dd></div>
                 <div class="rounded-xl bg-gray-50 p-4 sm:col-span-2"><dt class="text-xs font-bold uppercase text-gray-500">Delivery address</dt><dd class="mt-1 font-bold text-gray-900">{{ $order->customer_address }}</dd></div>
@@ -37,14 +38,23 @@
                     <ol class="mt-3 grid gap-2 sm:grid-cols-4">
                         @foreach($workflowSteps as $status => $label)
                             @php $step = array_search($status, array_keys($workflowSteps), true); @endphp
+                            @php $statusUpdate = $order->statusHistories->where('status', $status)->last(); @endphp
                             <li class="rounded-xl px-3 py-2 text-xs font-bold {{ $step <= $currentStep ? 'bg-green-50 text-green-800 ring-1 ring-green-100' : 'bg-gray-50 text-gray-400' }}">
                                 <span class="mr-1">{{ $step < $currentStep ? '✓' : ($step === $currentStep ? '•' : '○') }}</span>{{ $label }}
+                                @if($statusUpdate)<time class="mt-1 block font-medium text-gray-500">{{ $statusUpdate->created_at->format('M j, g:i A') }}</time>@endif
                             </li>
                         @endforeach
                     </ol>
                 </div>
             @else
                 <p class="mt-6 rounded-xl bg-red-50 p-4 text-sm font-bold text-red-800">Order {{ ucfirst($order->status) }}.</p>
+            @endif
+            @if(in_array($order->status, ['rider_assigned', 'picked_up', 'out_for_delivery', 'delivered']) && $order->rider)
+                <div class="mt-4 rounded-xl bg-purple-50 p-4">
+                    <p class="text-xs font-bold uppercase tracking-wider text-purple-700">Assigned rider</p>
+                    <p class="mt-1 font-bold text-purple-900">{{ $order->rider->user?->name ?? $order->rider->name }}</p>
+                    <a class="text-sm font-bold text-purple-800 underline" href="tel:{{ $order->rider->phone }}">{{ $order->rider->phone }}</a>
+                </div>
             @endif
             @if(in_array($order->status, ['rider_assigned', 'picked_up', 'out_for_delivery']) && $order->rider)
                 <div class="mt-4 rounded-xl bg-purple-50 p-4">

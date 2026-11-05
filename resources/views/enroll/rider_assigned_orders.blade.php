@@ -1,10 +1,11 @@
 @extends('layouts.navbar')
-
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <div class="min-h-screen bg-gray-100 py-10 px-4">
     <div class="max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-yellow-600">📦 Delivery Orders</h1>
+            <h1 class="text-4xl font-bold text-yellow-600">Rider dashboard</h1>
             <div class="flex gap-3">
                 <a href="{{ route('rider.notifications') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition shadow-md">
                     🔔 Notifications
@@ -26,6 +27,11 @@
                 <strong>✗ Warning:</strong> {{ session('warning') }}
             </div>
         @endif
+        @if (session('error'))
+            <div class="mb-6 p-4 rounded-lg bg-red-50 text-red-800 border-l-4 border-red-500">
+                <strong>✗ Error:</strong> {{ session('error') }}
+            </div>
+        @endif
 
         <!-- Order Status Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -40,11 +46,29 @@
                 <p class="text-gray-600 text-sm mt-2">Picked up or on the way</p>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col">
-                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">❌ Rejected</span>
-                <span class="text-4xl font-bold text-red-600">{{ $orders->where('status', 'rejected')->count() }}</span>
-                <p class="text-gray-600 text-sm mt-2">Declined orders</p>
+                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">✅ Completed</span>
+                <span class="text-4xl font-bold text-green-600">{{ $orders->where('status', 'delivered')->count() }}</span>
+                <p class="text-gray-600 text-sm mt-2">Delivery history</p>
             </div>
         </div>
+
+        <section class="mb-10 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-6 shadow">
+            <div>
+                <p class="text-sm font-semibold uppercase text-gray-500">Availability</p>
+                <p class="mt-1 text-xl font-bold {{ $rider->is_online ? 'text-green-700' : 'text-gray-700' }}">{{ $rider->is_online ? 'Online and available' : 'Offline' }}</p>
+                <p class="mt-1 text-sm text-gray-500">{{ $rider->is_online ? 'Go offline when you need a break.' : 'Go online to receive nearby delivery requests.' }}</p>
+            </div>
+            <form action="{{ route('rider.availability') }}" method="POST">
+                @csrf
+                <input type="hidden" name="is_online" value="{{ $rider->is_online ? 0 : 1 }}">
+                <button type="submit" class="rounded-lg px-5 py-3 font-bold text-white {{ $rider->is_online ? 'bg-gray-800 hover:bg-gray-700' : 'bg-green-600 hover:bg-green-700' }}">{{ $rider->is_online ? 'Go offline' : 'Go online' }}</button>
+            </form>
+        </section>
+
+        <section class="mb-10 rounded-xl bg-white p-6 shadow">
+            <h2 class="mb-4 text-xl font-bold text-gray-800">Pickup locations</h2>
+            <div id="riderMap" class="h-72 rounded-lg bg-yellow-50"></div>
+        </section>
 
         @if ($nearbyOrders->isNotEmpty())
             <section class="mb-10 rounded-xl bg-white p-8 shadow-lg">
@@ -119,17 +143,15 @@
                             </div>
 
                             <!-- Action Buttons -->
-                            <div class="flex gap-4 mt-6 border-t border-yellow-200 pt-6">
-                                <form method="POST" action="{{ route('rider.pickup', $order->id) }}" class="flex-1">
-                                    @csrf
-                                    <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                        Confirm pickup
-                                    </button>
-                                </form>
-
-                                <button type="button" onclick="openRejectModal({{ $order->id }})" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                    Decline assignment
-                                </button>
+                            <div class="mt-6 space-y-3 border-t border-yellow-200 pt-6">
+                                @if (!$order->rider_accepted_at)
+                                    <form method="POST" action="{{ route('rider.accept', $order->id) }}">@csrf<button type="submit" class="w-full rounded-lg bg-blue-600 py-3 font-bold text-white hover:bg-blue-700">Accept / acknowledge delivery</button></form>
+                                @elseif (!$order->rider_arrived_at)
+                                    <form method="POST" action="{{ route('rider.arrived', $order->id) }}">@csrf<button type="submit" class="w-full rounded-lg bg-blue-600 py-3 font-bold text-white hover:bg-blue-700">Confirm arrival at store</button></form>
+                                @else
+                                    <form method="POST" action="{{ route('rider.pickup', $order->id) }}">@csrf<button type="submit" class="w-full rounded-lg bg-green-600 py-3 font-bold text-white hover:bg-green-700">Confirm order picked up</button></form>
+                                @endif
+                                <button type="button" onclick="openRejectModal({{ $order->id }})" class="w-full rounded-lg bg-red-100 py-3 font-bold text-red-700 hover:bg-red-200">Decline assignment</button>
                             </div>
 
                             <p class="text-xs text-gray-500 mt-3">
@@ -163,11 +185,32 @@
                                 <form method="POST" action="{{ route('rider.out-for-delivery', $order->id) }}" class="mt-4">@csrf<button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700">Start delivery</button></form>
                             @else
                                 <form method="POST" action="{{ route('rider.deliver', $order->id) }}" class="mt-4 flex gap-2">@csrf<input name="recipient_code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required placeholder="4-digit customer code" class="min-w-0 flex-1 rounded-lg border-gray-200 px-3 py-2"><button type="submit" class="rounded-lg bg-gray-900 px-4 py-2 font-bold text-white hover:bg-green-700">Confirm delivery</button></form>
+                                <form method="POST" action="{{ route('rider.delivery-failed', $order->id) }}" class="mt-3 space-y-2">@csrf<textarea name="reason" required maxlength="1000" rows="2" placeholder="Reason delivery could not be completed" class="w-full rounded-lg border-gray-200 px-3 py-2"></textarea><button type="submit" class="rounded-lg bg-red-100 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-200">Report failed delivery attempt</button></form>
+                                @foreach($order->deliveryAttempts as $attempt)
+                                    <p class="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-800">Attempt {{ $attempt->attempted_at->format('M j, g:i A') }}: {{ $attempt->reason }}</p>
+                                @endforeach
                             @endif
                         </div>
                     @endforeach
                 </div>
             </div>
+        @endif
+
+        @if ($orders->where('status', 'delivered')->count() > 0)
+            <section class="rounded-xl bg-white p-8 shadow-lg">
+                <h2 class="mb-5 text-2xl font-bold text-gray-800">Completed deliveries and history</h2>
+                <div class="space-y-3">
+                    @foreach ($orders->where('status', 'delivered') as $order)
+                        <article class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-green-50 p-4">
+                            <div>
+                                <p class="font-bold text-gray-800">{{ $order->order_reference }} · {{ $order->customer_name }}</p>
+                                <p class="text-sm text-gray-600">{{ $order->customer_address }}</p>
+                            </div>
+                            <p class="text-sm font-semibold text-green-700">Delivered {{ $order->recipient_verified_at?->format('M j, Y · g:i A') ?? $order->updated_at->format('M j, Y · g:i A') }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
         @endif
 
         <!-- Rejected Orders -->
@@ -233,7 +276,36 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    const riderLatitude = @json($rider->latitude);
+    const riderLongitude = @json($rider->longitude);
+    const riderMap = L.map('riderMap').setView([riderLatitude || 6.5244, riderLongitude || 3.3792], riderLatitude ? 12 : 6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(riderMap);
+
+    if (riderLatitude && riderLongitude) {
+        L.marker([riderLatitude, riderLongitude]).addTo(riderMap).bindPopup('Your location');
+    }
+
+    @foreach($orders as $order)
+        @if($order->store && $order->store->latitude && $order->store->longitude)
+            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}])
+                .addTo(riderMap)
+                .bindPopup(@json($order->store->stores . ' pickup'));
+        @endif
+    @endforeach
+
+    @foreach($nearbyOrders as $order)
+        @if($order->store && $order->store->latitude && $order->store->longitude)
+            L.marker([{{ $order->store->latitude }}, {{ $order->store->longitude }}])
+                .addTo(riderMap)
+                .bindPopup(@json($order->store->stores . ' nearby pickup'));
+        @endif
+    @endforeach
+
     let currentOrderId = null;
 
     function openRejectModal(orderId) {

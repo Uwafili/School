@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Rider;
 use App\Models\DeliveryBid;
 use App\Models\Order;
-use App\Models\Notification;
+use App\Models\DeliveryAttempt;
 use App\Services\OrderNotificationService;
 use App\Services\OrderWorkflowService;
 use Illuminate\Support\Facades\DB;
@@ -89,23 +89,17 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
         }
 
-        if ($Rider->status !== 'approved') {
+        if ($Rider->status !== 'approved' || ! $Rider->is_active) {
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review. Please check back later.');
         }
 
-        $orders = $this->assignedOrdersForRider($Rider);
-        $nearbyOrders = $this->nearbyOrdersForRider($Rider);
-        $assignedCount = $orders->where('status', 'rider_assigned')->count() + $nearbyOrders->count();
-        $activeCount = $orders->whereIn('status', ['picked_up', 'out_for_delivery'])->count();
-        $completedCount = $orders->where('status', 'delivered')->count();
-
-        return view('enroll.ridersdashboard', compact('Rider', 'orders', 'nearbyOrders', 'assignedCount', 'activeCount', 'completedCount'));
+        return $this->assignedOrders();
     }
 
     private function assignedOrdersForRider(Rider $rider)
     {
         return Order::where('rider_id', $rider->id)
-            ->with(['store', 'customer', 'deliveryBids' => fn ($query) => $query->where('rider_id', $rider->id)])
+            ->with(['store', 'customer', 'deliveryAttempts', 'deliveryBids' => fn ($query) => $query->where('rider_id', $rider->id)])
             ->latest()
             ->get();
     }
@@ -163,7 +157,7 @@ class RiderController extends Controller
 
     public function placeBid(Request $request, $orderId, OrderNotificationService $notifications)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
         $validated = $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:1000000']]);
         $order = Order::whereKey($orderId)->firstOrFail();
 
@@ -180,6 +174,7 @@ class RiderController extends Controller
                     && $lockedOrder->payment_status === 'paid'
                     && $lockedOrder->store_approval_status === 'approved'
                     && $lockedRider->status === 'approved'
+                    && $lockedRider->is_active
                     && $lockedRider->is_online,
                 422,
                 'This order is no longer available.'
@@ -202,15 +197,59 @@ class RiderController extends Controller
 
     public function toggleAvailability(Request $request)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
         $rider->update(['is_online' => $request->boolean('is_online')]);
 
         return back()->with('success', $rider->is_online ? 'You are now online and can receive jobs.' : 'You are now offline.');
     }
 
+    public function acceptAssignment($orderId, OrderNotificationService $notifications)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
+        $order = DB::transaction(function () use ($orderId, $rider) {
+            $order = Order::query()->lockForUpdate()->where('rider_id', $rider->id)->findOrFail($orderId);
+            abort_unless($order->status === 'rider_assigned', 422, 'This order is no longer awaiting acknowledgment.');
+            $order->update(['rider_accepted_at' => $order->rider_accepted_at ?? now()]);
+            $order->riderAssignments()
+                ->where('rider_id', $rider->id)
+                ->whereNull('released_at')
+                ->update(['status' => 'accepted', 'acknowledged_at' => $order->rider_accepted_at]);
+
+            return $order->fresh(['store']);
+        });
+        $notifications->sendToStore(
+            $order,
+            'Rider accepted assignment',
+            "The rider accepted delivery {$order->order_reference}.",
+            'order_assignment_accepted'
+        );
+
+        return back()->with('success', 'Delivery assignment acknowledged.');
+    }
+
+    public function confirmArrival($orderId)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
+        DB::transaction(function () use ($orderId, $rider) {
+            $order = Order::query()->lockForUpdate()->where('rider_id', $rider->id)->findOrFail($orderId);
+            abort_unless(
+                $order->status === 'rider_assigned' && $order->rider_accepted_at !== null,
+                422,
+                'Acknowledge this delivery before confirming arrival.'
+            );
+            $order->update(['rider_arrived_at' => $order->rider_arrived_at ?? now()]);
+            $order->riderAssignments()
+                ->where('rider_id', $rider->id)
+                ->whereNull('released_at')
+                ->update(['arrived_at' => $order->rider_arrived_at]);
+        });
+
+        return back()->with('success', 'Arrival at the store confirmed.');
+    }
+
     public function confirmPickup($orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
         $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
 
         $order = $workflow->transition($order, 'picked_up', [
@@ -218,11 +257,12 @@ class RiderController extends Controller
         ], fn (Order $lockedOrder): bool =>
             $lockedOrder->rider_id === $rider->id
                 && $lockedOrder->picked_up_at === null
+                && $lockedOrder->rider_accepted_at !== null
+                && $lockedOrder->rider_arrived_at !== null
                 && $lockedOrder->store_approval_status === 'approved'
                 && $lockedOrder->payment_status === 'paid'
         );
 
-        $notifications->sendToCustomer($order, 'Order picked up', "The rider picked up order #{$order->id}.", 'order_picked_up');
         $notifications->sendToStore($order, 'Order picked up', "The rider picked up order #{$order->id}.", 'order_picked_up');
 
         return back()->with('success', 'Pickup confirmed. Take the order to the customer.');
@@ -230,14 +270,13 @@ class RiderController extends Controller
 
     public function markOutForDelivery($orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
         $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
 
         $order = $workflow->transition($order, 'out_for_delivery', [], fn (Order $lockedOrder): bool =>
             $lockedOrder->rider_id === $rider->id && $lockedOrder->picked_up_at !== null
         );
 
-        $notifications->sendToCustomer($order, 'Order is out for delivery', "Order #{$order->id} is on its way.", 'order_out_for_delivery');
         $notifications->sendToStore($order, 'Order is out for delivery', "Order #{$order->id} is on its way to the customer.", 'order_out_for_delivery');
 
         return back()->with('success', 'Order marked out for delivery.');
@@ -245,7 +284,7 @@ class RiderController extends Controller
 
     public function confirmDelivery(Request $request, $orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
         $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
         $request->validate(['recipient_code' => ['required', 'digits:4']]);
 
@@ -264,7 +303,6 @@ class RiderController extends Controller
                 && $lockedOrder->recipient_code !== null
                 && hash_equals((string) $lockedOrder->recipient_code, (string) $request->input('recipient_code'))
         );
-        $notifications->sendToCustomer($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_delivered');
         $notifications->sendToStore($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_delivered');
 
         return back()->with('success', 'Delivery confirmed. Recipient verified successfully.');
@@ -318,21 +356,19 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review.');
         }
 
-        $notifications = \App\Models\Notification::where('rider_id', $rider->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $notifications = $rider->notifications()->latest()->paginate(10);
+        $unreadCount = $rider->unreadNotifications()->count();
+        $orders = Order::whereIn('id', $notifications->getCollection()->pluck('data.order_id')->filter())
+            ->get()
+            ->keyBy('id');
 
-        $unreadCount = \App\Models\Notification::where('rider_id', $rider->id)
-            ->where('is_read', false)
-            ->count();
-
-        return view('enroll.rider_notifications', compact('notifications', 'unreadCount', 'rider'));
+        return view('enroll.rider_notifications', compact('notifications', 'unreadCount', 'rider', 'orders'));
     }
 
     public function markNotificationAsRead($notificationId)
     {
         $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
-        $notification = Notification::where('rider_id', $rider->id)->findOrFail($notificationId);
+        $notification = $rider->notifications()->findOrFail($notificationId);
         $notification->markAsRead();
 
         return back()->with('success', 'Notification marked as read.');
@@ -346,9 +382,7 @@ class RiderController extends Controller
             return response()->json(['count' => 0]);
         }
 
-        $count = \App\Models\Notification::where('rider_id', $rider->id)
-            ->where('is_read', false)
-            ->count();
+        $count = $rider->unreadNotifications()->count();
 
         return response()->json(['count' => $count]);
     }
@@ -364,7 +398,7 @@ class RiderController extends Controller
             return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
         }
 
-        if ($rider->status !== 'approved') {
+        if ($rider->status !== 'approved' || ! $rider->is_active) {
             return redirect()->route('rider.create')->with('warning', 'Your application is still under review.');
         }
 
@@ -379,7 +413,7 @@ class RiderController extends Controller
      */
     public function rejectOrder(Request $request, $orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->first();
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->first();
         
         if (!$rider) {
             return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
@@ -401,6 +435,8 @@ class RiderController extends Controller
         $order = $workflow->transition($order, 'ready_for_pickup', [
                 'rider_id' => null,
                 'recipient_code' => null,
+                'rider_accepted_at' => null,
+                'rider_arrived_at' => null,
             ], function (Order $lockedOrder) use ($rider): bool {
                 if ($lockedOrder->rider_id !== $rider->id) {
                     return false;
@@ -419,13 +455,43 @@ class RiderController extends Controller
             "The rider declined order #{$order->id}. Reason: {$reason}",
             'order_rider_declined'
         );
-        $notifications->sendToCustomer(
-            $order,
-            'A new rider is being found',
-            "The assigned rider could not take order #{$order->id}. The order is available for reassignment.",
-            'order_rider_declined'
-        );
-
         return redirect()->route('rider.assigned-orders')->with('success', 'The delivery was returned to the store for reassignment.');
+    }
+
+    public function reportFailedDelivery(Request $request, $orderId, OrderNotificationService $notifications)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->firstOrFail();
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
+
+        DB::transaction(function () use ($order, $rider, $validated, $notifications) {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+            abort_unless(
+                $lockedOrder->rider_id === $rider->id && $lockedOrder->status === 'out_for_delivery',
+                422,
+                'Only your order that is out for delivery can have a failed attempt reported.'
+            );
+
+            DeliveryAttempt::create([
+                'order_id' => $lockedOrder->id,
+                'rider_id' => $rider->id,
+                'reason' => $validated['reason'],
+                'attempted_at' => now(),
+            ]);
+            $notifications->sendToCustomer(
+                $lockedOrder,
+                'Delivery attempt unsuccessful',
+                "The rider could not complete delivery for {$lockedOrder->order_reference}. Reason: {$validated['reason']}",
+                'delivery_attempt_failed'
+            );
+            $notifications->sendToStore(
+                $lockedOrder,
+                'Delivery attempt unsuccessful',
+                "The rider could not complete delivery for {$lockedOrder->order_reference}. Reason: {$validated['reason']}",
+                'delivery_attempt_failed'
+            );
+        });
+
+        return back()->with('success', 'Failed delivery attempt reported.');
     }
 }

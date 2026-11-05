@@ -38,38 +38,38 @@
         <!-- Notifications List -->
         <div class="space-y-4">
             @forelse ($notifications as $notification)
-                <div class="bg-white rounded-lg shadow-md p-6 @if(!$notification->is_read) border-l-4 border-yellow-500 hover:shadow-lg @else border-l-4 border-gray-300 @endif transition">
+                <div class="bg-white rounded-lg shadow-md p-6 @if(!$notification->read_at) border-l-4 border-yellow-500 hover:shadow-lg @else border-l-4 border-gray-300 @endif transition">
                     <div class="flex justify-between items-start mb-3">
                         <div class="flex items-start gap-4 flex-1">
                             <div class="text-3xl">📦</div>
                             <div class="flex-1">
                                 <div class="flex gap-2 items-center mb-2">
-                                    <h3 class="text-lg font-bold text-gray-800">{{ $notification->title }}</h3>
-                                    @if (!$notification->is_read)
+                                    <h3 class="text-lg font-bold text-gray-800">{{ $notification->data['title'] ?? 'Delivery update' }}</h3>
+                                    @if (!$notification->read_at)
                                         <span class="inline-block bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1 rounded-full">
                                             NEW
                                         </span>
                                     @endif
                                 </div>
-                                <p class="text-gray-700 mb-3">{{ $notification->message }}</p>
+                                <p class="text-gray-700 mb-3">{{ $notification->data['message'] ?? '' }}</p>
                                 
                                 <!-- Order Details -->
-                                @if ($notification->order)
+                                @if ($order = $orders->get($notification->data['order_id'] ?? null))
                                     <div class="bg-gray-50 rounded p-3 mb-3 text-sm">
                                         <p class="text-gray-600">
-                                            <strong>Order #:</strong> {{ $notification->order->id }}
+                                            <strong>Order #:</strong> {{ $order->id }}
                                         </p>
                                         <p class="text-gray-600">
-                                            <strong>Customer:</strong> {{ $notification->order->customer_name }}
+                                            <strong>Customer:</strong> {{ $order->customer_name }}
                                         </p>
                                         <p class="text-gray-600">
-                                            <strong>Phone:</strong> {{ $notification->order->customer_phone }}
+                                            <strong>Phone:</strong> {{ $order->customer_phone }}
                                         </p>
                                         <p class="text-gray-600">
-                                            <strong>Delivery Address:</strong> {{ $notification->order->customer_address }}
+                                            <strong>Delivery Address:</strong> {{ $order->customer_address }}
                                         </p>
                                         <p class="text-gray-600">
-                                            <strong>Items:</strong> {{ $notification->order->items_description }}
+                                            <strong>Items:</strong> {{ $order->items_description }}
                                         </p>
                                     </div>
                                 @endif
@@ -78,7 +78,7 @@
 
                         <!-- Actions -->
                         <div class="flex flex-col gap-2">
-                            @if (!$notification->is_read)
+                            @if (!$notification->read_at)
                                 <form method="POST" action="{{ route('notification.read', $notification->id) }}">
                                     @csrf
                                     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition whitespace-nowrap text-sm">
@@ -96,7 +96,7 @@
                     <!-- Timestamp -->
                     <div class="text-xs text-gray-500">
                         <p>{{ $notification->created_at->diffForHumans() }}</p>
-                        @if ($notification->is_read)
+                        @if ($notification->read_at)
                             <p>Read: {{ $notification->read_at->format('M d, Y H:i') }}</p>
                         @endif
                     </div>

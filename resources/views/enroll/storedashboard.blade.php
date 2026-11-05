@@ -67,16 +67,16 @@
             <section class="mb-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100" aria-live="polite">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <h2 class="text-lg font-black text-gray-900">New order notifications</h2>
-                    <span class="text-xs font-bold text-gray-500">{{ $storeNotifications->where('is_read', false)->count() }} unread</span>
+                    <span class="text-xs font-bold text-gray-500">{{ $storeNotifications->whereNull('read_at')->count() }} unread</span>
                 </div>
                 <div class="space-y-3" data-store-notifications data-store-user-id="{{ auth()->id() }}">
                     @forelse ($storeNotifications as $notification)
-                        <article class="flex items-start gap-3 rounded-xl border p-4 {{ $notification->is_read ? 'border-gray-100 bg-gray-50' : 'border-yellow-200 bg-yellow-50' }}">
+                        <article class="flex items-start gap-3 rounded-xl border p-4 {{ $notification->read_at ? 'border-gray-100 bg-gray-50' : 'border-yellow-200 bg-yellow-50' }}">
                             <div class="min-w-0 flex-1">
-                                <p class="font-bold text-gray-900">{{ $notification->title }}</p>
-                                <p class="mt-1 text-sm text-gray-600">{{ $notification->message }}</p>
+                                <p class="font-bold text-gray-900">{{ $notification->data['title'] ?? 'Order update' }}</p>
+                                <p class="mt-1 text-sm text-gray-600">{{ $notification->data['message'] ?? '' }}</p>
                             </div>
-                            @unless ($notification->is_read)
+                            @unless ($notification->read_at)
                                 <form action="{{ route('store.notifications.read', $notification->id) }}" method="POST">
                                     @csrf
                                     <button type="submit" class="text-xs font-bold text-orange-700 hover:text-orange-900">Mark read</button>
@@ -200,18 +200,13 @@
                             <input type="text" name="customer_address" placeholder="Delivery Address"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition"
                                 required>
-                            <input type="number" name="total_price" placeholder="Order Total (₦)"
-                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition"
-                                required>
-                            <input type="number" name="delivery_fee" min="0" step="0.01" placeholder="Delivery Fee / Rider Pay (₦)"
-                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition"
-                                required>
+                            <p class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">This creates an unpaid draft only. Customer checkout calculates prices from the current product catalog.</p>
                             <textarea name="items_description" placeholder="Order Items Description" rows="3"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-yellow-500 focus:ring-2 focus:ring-yellow-300 outline-none transition resize-none"
                                 required></textarea>
                             <button type="submit"
                                 class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                ➕ Create Order
+                                ➕ Create Unpaid Draft
                             </button>
                         </form>
                     </div>
@@ -341,6 +336,12 @@
                                                 <button onclick="openAssignModal({{ $order->id }})" class="text-yellow-600 hover:text-yellow-800 font-semibold text-sm px-2 py-1 bg-yellow-50 rounded hover:bg-yellow-100 transition">
                                                     🎯 Assign
                                                 </button>
+                                            @endif
+                                            @if ($order->status === 'rider_assigned')
+                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
+                                                    @csrf
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded" onclick="return confirm('Cancel this delivery and start a refund?')">Cancel delivery</button>
+                                                </form>
                                             @endif
                                             @if ($order->store_approval_status === 'pending' && $order->status === 'pending')
                                                 <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">

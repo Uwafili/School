@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Models\Rider;
 use App\Models\User;
+use App\Models\Order;
 use App\Models\ApprovalNotification;
+use App\Services\OrderNotificationService;
+use App\Services\OrderWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
@@ -248,6 +251,48 @@ class AdminController extends Controller
         $rider->update($validated);
 
         return redirect()->route('riders')->with('success', 'Rider updated successfully.');
+    }
+
+    public function toggleRiderActive(Rider $rider, OrderWorkflowService $workflow, OrderNotificationService $notifications)
+    {
+        $activate = ! $rider->is_active;
+
+        if (! $activate && Order::where('rider_id', $rider->id)
+            ->whereIn('status', ['picked_up', 'out_for_delivery'])
+            ->exists()) {
+            return back()->with('error', 'This rider has an active delivery. Complete it before deactivating the rider.');
+        }
+
+        DB::transaction(function () use ($rider, $activate, $workflow, $notifications) {
+            $lockedRider = Rider::query()->lockForUpdate()->findOrFail($rider->id);
+            $lockedRider->update([
+                'is_active' => $activate,
+                'is_online' => $activate && $lockedRider->is_online,
+            ]);
+
+            if (! $activate) {
+                Order::where('rider_id', $lockedRider->id)
+                    ->where('status', 'rider_assigned')
+                    ->get()
+                    ->each(function (Order $order) use ($workflow, $notifications, $lockedRider) {
+                        $releasedOrder = $workflow->transition($order, 'ready_for_pickup', [
+                            'rider_id' => null,
+                            'recipient_code' => null,
+                            'rider_accepted_at' => null,
+                            'rider_arrived_at' => null,
+                        ], fn (Order $lockedOrder): bool => $lockedOrder->rider_id === $lockedRider->id);
+
+                        $notifications->sendToStore(
+                            $releasedOrder,
+                            'Rider deactivated',
+                            "Order {$releasedOrder->order_reference} is ready for reassignment.",
+                            'order_rider_deactivated'
+                        );
+                    });
+            }
+        });
+
+        return back()->with('success', $activate ? 'Rider activated.' : 'Rider deactivated and unstarted orders released for reassignment.');
     }
 
     public function editStore(Store $store)

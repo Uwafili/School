@@ -11,3 +11,11 @@ Broadcast::channel('stores.{userId}', function (User $user, int $userId): bool {
 Broadcast::channel('riders.{riderId}', function (User $user, int $riderId): bool {
     return Rider::whereKey($riderId)->where('user_id', $user->id)->exists();
 });
+
+Broadcast::channel('App.Models.User.{userId}', function (User $user, int $userId): bool {
+    return $user->id === $userId;
+});
+
+Broadcast::channel('App.Models.Rider.{riderId}', function (User $user, int $riderId): bool {
+    return Rider::whereKey($riderId)->where('user_id', $user->id)->exists();
+});

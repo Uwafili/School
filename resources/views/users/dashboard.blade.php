@@ -114,13 +114,13 @@
                 <section class="mb-7 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-6" aria-live="polite">
                     <div class="mb-4 flex items-center justify-between gap-3">
                         <div><p class="text-xs font-black uppercase tracking-[.16em] text-orange-500">Order updates</p><h2 class="mt-1 text-lg font-black text-gray-900">Notifications</h2></div>
-                        <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">{{ $orderNotifications->where('is_read', false)->count() }} unread</span>
+                        <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">{{ $orderNotifications->whereNull('read_at')->count() }} unread</span>
                     </div>
                     <div class="space-y-2">
                         @foreach($orderNotifications as $notification)
-                            <article class="flex items-start gap-3 rounded-xl p-3 {{ $notification->is_read ? 'bg-gray-50' : 'bg-orange-50' }}">
-                                <div class="min-w-0 flex-1"><p class="text-sm font-black text-gray-900">{{ $notification->title }}</p><p class="mt-1 text-sm text-gray-600">{{ $notification->message }}</p><p class="mt-1 text-[10px] text-gray-400">{{ $notification->created_at->diffForHumans() }}</p></div>
-                                @unless($notification->is_read)
+                            <article class="flex items-start gap-3 rounded-xl p-3 {{ $notification->read_at ? 'bg-gray-50' : 'bg-orange-50' }}">
+                                <div class="min-w-0 flex-1"><p class="text-sm font-black text-gray-900">{{ $notification->data['title'] ?? 'Order update' }}</p><p class="mt-1 text-sm text-gray-600">{{ $notification->data['message'] ?? '' }}</p><p class="mt-1 text-[10px] text-gray-400">{{ $notification->created_at->diffForHumans() }}</p></div>
+                                @unless($notification->read_at)
                                     <form method="POST" action="{{ route('notifications.read', $notification->id) }}">@csrf<button type="submit" class="shrink-0 text-xs font-black text-orange-700">Mark read</button></form>
                                 @endunless
                             </article>

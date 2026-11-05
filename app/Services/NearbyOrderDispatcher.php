@@ -31,6 +31,7 @@ class NearbyOrderDispatcher
         $longitudeRange = $radius / max(111.045 * abs(cos(deg2rad($latitude))), 0.01);
 
         $riders = Rider::where('status', 'approved')
+            ->where('is_active', true)
             ->where('is_online', true)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')

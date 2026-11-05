@@ -91,12 +91,22 @@ class MessageController extends Controller
                 'message' => $validated['message'],
             ]);
 
+            $senderId = Auth::id();
+            $isCustomerMessage = $senderId === $order->customer_id;
+            $isStoreOwnerMessage = $senderId === $order->store?->user_id;
+            $title = $isCustomerMessage
+                ? 'New customer message'
+                : ($isStoreOwnerMessage ? 'New message from store owner' : 'New order message');
+            $type = $isCustomerMessage
+                ? 'customer_message'
+                : ($isStoreOwnerMessage ? 'store_owner_message' : 'order_message');
+
             $notifications->sendToUser(
                 (int) $validated['receiver_id'],
                 $order,
-                'New order message',
+                $title,
                 'You received a new message about order #' . $order->id . '.',
-                'order_message'
+                $type
             );
         });
 

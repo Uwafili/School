@@ -48,7 +48,7 @@ class AuthController extends Controller
                $activeRole = 'user';
                if ($signedInUser->usertype === 'admin') {
                   $activeRole = 'admin';
-               } elseif (Rider::where('user_id', $signedInUser->id)->where('status', 'approved')->exists()) {
+               } elseif (Rider::where('user_id', $signedInUser->id)->where('status', 'approved')->where('is_active', true)->exists()) {
                   $activeRole = 'rider';
                } elseif (Store::where('user_id', $signedInUser->id)->exists()) {
                   $activeRole = 'store';
@@ -128,7 +128,7 @@ class AuthController extends Controller
 
       if ($user->usertype === 'admin') {
          $request->session()->put('active_role', 'admin');
-      } elseif ($role === 'rider' && Rider::where('user_id', $user->id)->where('status', 'approved')->exists()) {
+      } elseif ($role === 'rider' && Rider::where('user_id', $user->id)->where('status', 'approved')->where('is_active', true)->exists()) {
          $request->session()->put('active_role', 'rider');
       } elseif ($role === 'store' && Store::where('user_id', $user->id)->exists()) {
          $request->session()->put('active_role', 'store');
@@ -208,7 +208,25 @@ class AuthController extends Controller
 
 public function showrider(){
      $Riders=Rider::latest()->get();
-     return view('admin.riders',compact('Riders'));
+     $readyOrders = \App\Models\Order::with('store')
+        ->where('status', 'ready_for_pickup')
+        ->where('payment_status', 'paid')
+        ->where('store_approval_status', 'approved')
+        ->whereNull('rider_id')
+        ->latest()
+        ->get();
+     $availableRiders = Rider::where('status', 'approved')->where('is_active', true)->where('is_online', true)->get();
+     $activeOrders = \App\Models\Order::with(['rider', 'store'])
+        ->whereIn('status', ['rider_assigned', 'picked_up', 'out_for_delivery'])
+        ->latest()
+        ->get();
+     $deliveryHistory = \App\Models\Order::with('rider')
+        ->where('status', 'delivered')
+        ->latest()
+        ->limit(50)
+        ->get();
+
+     return view('admin.riders', compact('Riders', 'readyOrders', 'availableRiders', 'activeOrders', 'deliveryHistory'));
 }
 
 public function viewdetail($id){

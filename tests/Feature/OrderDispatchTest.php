@@ -9,6 +9,7 @@ use App\Models\Rider;
 use App\Models\Store;
 use App\Models\User;
 use App\Models\DeliveryBid;
+use App\Notifications\OrderUpdateNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -66,15 +67,19 @@ class OrderDispatchTest extends TestCase
             'items_description' => 'Rice x1',
         ])->assertRedirect(route('storedashboard'));
 
-        $this->assertDatabaseHas('notifications', [
+        $order = Order::where('store_id', $store->id)->firstOrFail();
+        $this->assertSame(0.0, (float) $order->total_price);
+        $this->assertSame('unpaid', $order->payment_status);
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $owner->id,
-            'order_id' => Order::where('store_id', $store->id)->value('id'),
-            'title' => 'New food order received',
+            'order_id' => $order->id,
+            'title' => 'New order draft created',
         ]);
+        $this->assertTrue($owner->notifications()->where('data->order_id', $order->id)->exists());
 
         $this->get(route('storedashboard'))
             ->assertOk()
-            ->assertSee('New food order received');
+            ->assertSee('New order draft created');
     }
 
     public function test_store_owner_is_notified_when_a_customer_pays_for_food(): void
@@ -91,6 +96,13 @@ class OrderDispatchTest extends TestCase
             'status' => 'approved',
             'latitude' => 6.5244,
             'longitude' => 3.3792,
+        ]);
+        $post = Post::create([
+            'user_id' => $owner->id,
+            'title' => 'Jollof Rice',
+            'description' => 'A test dish',
+            'price' => '2400',
+            'category' => 'pizza',
         ]);
         $riderUser = User::factory()->create();
         $rider = Rider::create([
@@ -140,7 +152,7 @@ class OrderDispatchTest extends TestCase
         ]);
 
         $this->actingAs($customer)->withSession([
-            'cart' => [[
+            'cart' => [$post->id => [
                 'store_id' => $store->id,
                 'title' => 'Changed cart item',
                 'price' => 5000,
@@ -153,7 +165,7 @@ class OrderDispatchTest extends TestCase
                 'delivery_address' => 'Customer Address',
                 'customer_phone' => '08012345678',
                 'reference' => 'paystack-test-reference',
-                'cart' => [[
+                'cart' => [$post->id => [
                     'store_id' => $store->id,
                     'title' => 'Jollof Rice',
                     'price' => 2400,
@@ -164,12 +176,20 @@ class OrderDispatchTest extends TestCase
             ->assertRedirect(route('dashboard'));
 
         $order = Order::where('store_id', $store->id)->firstOrFail();
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $owner->id,
             'order_id' => $order->id,
             'title' => 'New food order received',
         ]);
         $this->assertSame('Jollof Rice x1', $order->items_description);
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order->id,
+            'post_id' => $post->id,
+            'product_name' => 'Jollof Rice',
+            'unit_price' => 2400,
+            'quantity' => 1,
+            'line_total' => 2400,
+        ]);
         $this->assertSame('pending', $order->store_approval_status);
         $this->assertSame('paystack-test-reference', $order->payment_reference);
         Event::assertNotDispatched(NearbyOrderAvailable::class);
@@ -178,6 +198,20 @@ class OrderDispatchTest extends TestCase
             ->assertOk()
             ->assertSee('Order history')
             ->assertSee('Store approval:');
+        $this->actingAs($customer)->post(route('chat.send', $order), [
+            'receiver_id' => $owner->id,
+            'message' => 'Please include napkins.',
+        ])->assertRedirect();
+        $this->assertDatabaseHas('messages', [
+            'order_id' => $order->id,
+            'sender_id' => $customer->id,
+            'receiver_id' => $owner->id,
+            'message' => 'Please include napkins.',
+        ]);
+        $this->assertTrue($owner->notifications()
+            ->where('type', OrderUpdateNotification::class)
+            ->where('data->type', 'customer_message')
+            ->exists());
         $this->actingAs($owner)->get(route('storedashboard'))
             ->assertOk()
             ->assertSee('Orders awaiting store approval')
@@ -201,6 +235,45 @@ class OrderDispatchTest extends TestCase
             && $event->broadcastOn()[0]->name === 'private-riders.' . $rider->id
         );
         Event::assertNotDispatched(NearbyOrderAvailable::class, fn ($event) => $event->riderId === $farRider->id);
+
+        $this->post(route('order.assign'), [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+        ])->assertRedirect(route('storedashboard'));
+        $this->assertTrue($rider->notifications()
+            ->where('type', OrderUpdateNotification::class)
+            ->where('data->type', 'order_assigned')
+            ->exists());
+        $this->actingAs($riderUser)
+            ->get(route('rider.notifications'))
+            ->assertOk()
+            ->assertSee('New order assigned')
+            ->assertSee('Customer Address');
+
+        $this->actingAs($riderUser)
+            ->post(route('rider.accept', $order))
+            ->assertRedirect();
+        $this->post(route('rider.arrived', $order))->assertRedirect();
+        $this->post(route('rider.pickup', $order))->assertRedirect();
+        $this->post(route('rider.out-for-delivery', $order))->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'out_for_delivery']);
+
+        $order->refresh();
+        $this->post(route('rider.deliver', $order), [
+            'recipient_code' => $order->recipient_code,
+        ])->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'delivered']);
+        $this->assertDatabaseHas('rider_assignments', [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'status' => 'completed',
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('customer.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Delivered')
+            ->assertSee($order->order_reference);
 
         $this->actingAs($owner)->get(route('storedashboard'))
             ->assertOk()
@@ -289,13 +362,19 @@ class OrderDispatchTest extends TestCase
         $this->actingAs($owner)->post(route('order.assign'), [
             'order_id' => $order->id,
             'rider_id' => $rider->id,
-            'delivery_fee' => 450,
+            'delivery_fee' => 99999,
         ])->assertRedirect(route('storedashboard'));
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'status' => 'rider_assigned',
             'rider_id' => $rider->id,
-            'delivery_fee' => 450,
+            'delivery_fee' => 300,
+        ]);
+        $this->assertDatabaseHas('rider_assignments', [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'status' => 'assigned',
+            'released_at' => null,
         ]);
 
         $bidOrder = $this->makeOrder($store, $customer, null, 'Bid assignment');
@@ -330,6 +409,13 @@ class OrderDispatchTest extends TestCase
             'address' => 'Lagos',
             'status' => 'approved',
         ]);
+        $post = Post::create([
+            'user_id' => $storeOwner->id,
+            'title' => 'Jollof Rice',
+            'description' => 'A test dish',
+            'price' => '2400',
+            'category' => 'pizza',
+        ]);
         config(['services.paystack.secret_key' => 'sk_test_example']);
         Http::fake([
             'https://api.paystack.co/transaction/initialize' => Http::response([
@@ -346,10 +432,10 @@ class OrderDispatchTest extends TestCase
             ->assertDontSee('Cash on delivery');
 
         $this->actingAs($customer)->withSession([
-            'cart' => [[
+            'cart' => [$post->id => [
                 'store_id' => $store->id,
-                'title' => 'Jollof Rice',
-                'price' => 2400,
+                'title' => 'Forged title',
+                'price' => 1,
                 'quantity' => 1,
             ]],
         ])->post(route('payment.pay'), [
@@ -360,8 +446,9 @@ class OrderDispatchTest extends TestCase
             'customer_phone' => '08012345678',
         ])->assertRedirect('https://checkout.paystack.com/test-session');
 
-        $this->assertSame(2400, session('pending_payment.amount'));
-        $this->assertSame('Jollof Rice', session('pending_payment.cart.0.title'));
+        $this->assertSame(2400.0, session('pending_payment.amount'));
+        $this->assertSame('Jollof Rice', session("pending_payment.cart.{$post->id}.title"));
+        $this->assertSame(2400.0, session("pending_payment.cart.{$post->id}.price"));
         $this->assertSame('08012345678', session('pending_payment.customer_phone'));
         Http::assertSent(fn ($request) =>
             $request->url() === 'https://api.paystack.co/transaction/initialize'
@@ -570,10 +657,10 @@ class OrderDispatchTest extends TestCase
         $this->actingAs($riderUser)
             ->get(route('rider.dashboard'))
             ->assertOk()
-            ->assertSee('Order #' . $assignedOrder->id)
+            ->assertSee('Assigned items')
             ->assertSee('Order #' . $nearbyOrder->id)
             ->assertDontSee('Awaiting store approval item')
-            ->assertDontSee('Order #' . $farOrder->id);
+            ->assertDontSee('Distant paid items');
 
         $this->get(route('rider.assigned-orders'))
             ->assertOk()
@@ -623,10 +710,10 @@ class OrderDispatchTest extends TestCase
             'refund_status' => 'pending',
         ]);
         Queue::assertPushed(ProcessPaystackRefund::class, fn ($job) => $job->orderId === $order->id);
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $customer->id,
             'order_id' => $order->id,
-            'type' => 'order_rejected',
+            'type' => 'order_status_rejected',
         ]);
     }
 
@@ -643,6 +730,13 @@ class OrderDispatchTest extends TestCase
             'phone' => '08012345678',
             'address' => 'Lagos',
             'status' => 'rejected',
+        ]);
+        $post = Post::create([
+            'user_id' => $owner->id,
+            'title' => 'Meal',
+            'description' => 'A test dish',
+            'price' => '1000',
+            'category' => 'pizza',
         ]);
         config(['services.paystack.secret_key' => 'sk_test_example']);
         Http::fake([
@@ -666,7 +760,7 @@ class OrderDispatchTest extends TestCase
                 'customer_phone' => '08012345678',
                 'reference' => 'store-status-changed',
                 'cart' => [
-                    42 => [
+                    $post->id => [
                         'store_id' => $store->id,
                         'title' => 'Meal',
                         'price' => 1000,
@@ -759,7 +853,7 @@ class OrderDispatchTest extends TestCase
             && $request['transaction'] === 'paystack-confirmed-refund'
             && $request['amount'] === '250000'
         );
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $customer->id,
             'order_id' => $order->id,
             'type' => 'order_refund',
@@ -788,11 +882,15 @@ class OrderDispatchTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $customer->id,
             'order_id' => $order->id,
-            'type' => 'order_message',
+            'type' => 'store_owner_message',
         ]);
+        $this->assertTrue($customer->notifications()
+            ->where('type', OrderUpdateNotification::class)
+            ->where('data->type', 'store_owner_message')
+            ->exists());
 
         $messageId = \App\Models\Message::where('order_id', $order->id)->value('id');
         $this->actingAs($customer)
@@ -866,16 +964,37 @@ class OrderDispatchTest extends TestCase
         $this->actingAs($riderUser)
             ->get(route('rider.assigned-orders'))
             ->assertOk()
-            ->assertSee('Confirm pickup')
+            ->assertSee('Accept / acknowledge delivery')
             ->assertSee('Decline assignment');
+        $this->post(route('rider.accept', $order))
+            ->assertRedirect();
+        $this->post(route('rider.arrived', $order))
+            ->assertRedirect();
         $this->post(route('rider.pickup', $order))
             ->assertRedirect();
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'picked_up']);
         $this->assertNotNull($order->fresh()->picked_up_at);
+        $this->assertDatabaseHas('rider_assignments', [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'status' => 'picked_up',
+        ]);
 
         $this->post(route('rider.out-for-delivery', $order))
             ->assertRedirect();
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'out_for_delivery']);
+        $this->post(route('rider.delivery-failed', $order), ['reason' => 'Customer unavailable'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('delivery_attempts', [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'reason' => 'Customer unavailable',
+        ]);
+        $this->assertDatabaseHas('order_notifications', [
+            'user_id' => $customer->id,
+            'order_id' => $order->id,
+            'type' => 'delivery_attempt_failed',
+        ]);
 
         $this->post(route('rider.deliver', $order), ['recipient_code' => '0000'])
             ->assertRedirect()
@@ -888,6 +1007,20 @@ class OrderDispatchTest extends TestCase
             'recipient_code' => '1234',
         ]);
         $this->assertNotNull($order->fresh()->recipient_verified_at);
+        $this->assertDatabaseHas('rider_assignments', [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'status' => 'completed',
+        ]);
+        $this->assertDatabaseHas('order_status_histories', [
+            'order_id' => $order->id,
+            'status' => 'delivered',
+        ]);
+        $this->assertDatabaseHas('order_notifications', [
+            'user_id' => $customer->id,
+            'order_id' => $order->id,
+            'type' => 'order_status_delivered',
+        ]);
 
         $declinedOrder = $this->makeOrder($store, $customer, $rider, 'Declined items');
         $this->post(route('order.reject', $declinedOrder), ['reason' => 'Vehicle issue'])
@@ -897,7 +1030,7 @@ class OrderDispatchTest extends TestCase
             'status' => 'ready_for_pickup',
             'rider_id' => null,
         ]);
-        $this->assertDatabaseHas('notifications', [
+        $this->assertDatabaseHas('order_notifications', [
             'user_id' => $owner->id,
             'order_id' => $declinedOrder->id,
             'type' => 'order_rider_declined',

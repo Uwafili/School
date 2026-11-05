@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Order;
-use App\Models\Notification as UserNotification;
 use App\Models\Store;
 use App\Models\Rider;
 use App\Models\StoreRating;
@@ -69,6 +68,7 @@ class DashboardController extends Controller
          ->get(['id', 'stores', 'latitude', 'longitude']);
       $riders = Rider::with('user')
          ->where('status', 'approved')
+         ->where('is_active', true)
          ->where('is_online', true)
          ->whereNotNull('latitude')
          ->whereNotNull('longitude')
@@ -77,11 +77,7 @@ class DashboardController extends Controller
          ->whereIn('order_id', $orders->pluck('id'))
          ->get()
          ->keyBy('order_id');
-      $orderNotifications = UserNotification::where('user_id', Auth::id())
-         ->whereNotNull('order_id')
-         ->latest()
-         ->limit(10)
-         ->get();
+      $orderNotifications = Auth::user()->notifications()->latest()->limit(10)->get();
       $unreadMessagesByOrder = Message::where('receiver_id', Auth::id())
          ->whereNull('read_at')
          ->whereIn('order_id', $orders->pluck('id'))
@@ -123,16 +119,16 @@ class DashboardController extends Controller
 
    public function showOrder(Order $order)
    {
-      abort_unless($order->customer_id === Auth::id(), 403);
+      $this->authorize('view', $order);
 
-      $order->load(['store.user', 'rider.user']);
+      $order->load(['store.user', 'rider.user', 'statusHistories']);
 
       return view('users.order-details', compact('order'));
    }
 
    public function markNotificationAsRead($notificationId)
    {
-      $notification = UserNotification::where('user_id', Auth::id())->findOrFail($notificationId);
+      $notification = Auth::user()->notifications()->findOrFail($notificationId);
       $notification->markAsRead();
 
       return back();

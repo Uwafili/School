@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Models\Order;
 use App\Models\Notification as UserNotification;
+use App\Models\Post;
+use App\Models\OrderItem;
 use App\Events\StoreOrderCreated;
 use App\Jobs\ProcessPaystackRefund;
+use App\Services\OrderNotificationService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
@@ -20,13 +23,17 @@ class PaymentController extends Controller
     public function checkout(Request $request)
     {
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart) || !$this->cartItemsAreValid($cart)) {
+        $normalizedCart = is_array($cart) && $this->cartItemsAreValid($cart)
+            ? $this->authoritativeCart($cart)
+            : null;
+        if ($normalizedCart === null) {
             $request->session()->forget('cart');
 
             return redirect()->route('cart')->with('error', 'Your cart could not be loaded. Please add your items again.');
         }
 
-        $subtotal = collect($cart)->sum(fn ($item) => $item['price'] * $item['quantity']);
+        $request->session()->put('cart', $normalizedCart);
+        $subtotal = collect($normalizedCart)->sum(fn ($item) => $item['price'] * $item['quantity']);
         $deliveryFee = $this->deliveryFee(Auth::user()?->latitude, Auth::user()?->longitude);
 
         return view('check.checkout', [
@@ -50,11 +57,15 @@ class PaymentController extends Controller
         ]);
 
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart) || !$this->cartItemsAreValid($cart)) {
+        $normalizedCart = is_array($cart) && $this->cartItemsAreValid($cart)
+            ? $this->authoritativeCart($cart)
+            : null;
+        if ($normalizedCart === null) {
             $request->session()->forget('cart');
 
             return redirect()->route('cart')->with('error', 'Your cart could not be loaded. Please add your items again.');
         }
+        $cart = $normalizedCart;
 
         if (empty($cart)) {
             return redirect()->route('cart')->with('error', 'Your cart is empty.');
@@ -136,11 +147,51 @@ class PaymentController extends Controller
         return Validator::make(['cart' => $cart], [
             'cart' => ['required', 'array'],
             'cart.*' => ['required', 'array'],
-            'cart.*.title' => ['required', 'string', 'max:255'],
-            'cart.*.price' => ['required', 'numeric', 'min:0', 'max:100000000'],
             'cart.*.quantity' => ['required', 'integer', 'min:1', 'max:100'],
-            'cart.*.store_id' => ['nullable', 'integer'],
         ])->passes();
+    }
+
+    private function authoritativeCart(array $cart): ?array
+    {
+        $postIds = collect(array_keys($cart))
+            ->map(fn ($id) => filter_var($id, FILTER_VALIDATE_INT))
+            ->filter(fn ($id) => $id !== false && $id > 0)
+            ->unique()
+            ->values();
+
+        if ($postIds->count() !== count($cart)) {
+            return null;
+        }
+
+        $posts = Post::whereIn('id', $postIds)->get()->keyBy('id');
+        if ($posts->count() !== $postIds->count()) {
+            return null;
+        }
+
+        $stores = Store::whereIn('user_id', $posts->pluck('user_id')->unique())
+            ->where('status', 'approved')
+            ->get()
+            ->keyBy('user_id');
+        $normalized = [];
+
+        foreach ($cart as $id => $item) {
+            $post = $posts->get((int) $id);
+            $store = $post ? $stores->get($post->user_id) : null;
+            if (! $post || ! $store) {
+                return null;
+            }
+
+            $normalized[$post->id] = [
+                'title' => $post->title,
+                'price' => (float) $post->price,
+                'quantity' => (int) $item['quantity'],
+                'image' => $post->image,
+                'category' => $post->category,
+                'store_id' => $store->id,
+            ];
+        }
+
+        return $normalized;
     }
 
     private function deliveryFee(?float $latitude, ?float $longitude): float
@@ -172,7 +223,7 @@ class PaymentController extends Controller
         return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
-    public function paystackCallback(Request $request)
+    public function paystackCallback(Request $request, OrderNotificationService $notifications)
     {
         $payment = $request->session()->get('pending_payment', []);
         $reference = (string) $request->query('reference', '');
@@ -211,13 +262,13 @@ class PaymentController extends Controller
             return redirect()->route('payment.checkout')->with('error', 'Paystack did not confirm this payment. No order was charged.');
         }
 
-        $this->createPaidOrders($payment, 'paystack');
+        $this->createPaidOrders($payment, 'paystack', $notifications);
         $request->session()->forget(['cart', 'pending_payment']);
 
         return redirect()->route('dashboard')->with('success', 'Payment completed successfully.');
     }
 
-    private function createPaidOrders(array $payment, string $method): void
+    private function createPaidOrders(array $payment, string $method, OrderNotificationService $notifications): void
     {
         $cart = $payment['cart'] ?? [];
         if (empty($cart)) {
@@ -229,7 +280,7 @@ class PaymentController extends Controller
             throw new \RuntimeException('Verified Paystack payment is missing its reference.');
         }
 
-        $dispatches = DB::transaction(function () use ($cart, $payment, $method, $paymentReference) {
+        $dispatches = DB::transaction(function () use ($cart, $payment, $method, $paymentReference, $notifications) {
             $existingOrders = Order::where('payment_reference', $paymentReference)->with('store')->get();
             if ($existingOrders->isNotEmpty()) {
                 return $existingOrders->map(fn (Order $order) => [
@@ -293,23 +344,33 @@ class PaymentController extends Controller
                     'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
                 ]);
 
-                $notification = UserNotification::create([
-                    'user_id' => $store->user_id,
-                    'order_id' => $order->id,
-                    'title' => $storeAcceptingOrders ? 'New food order received' : 'Refund required for unavailable store',
-                    'message' => $storeAcceptingOrders
+                foreach ($itemsSnapshot as $item) {
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'post_id' => $item['post_id'],
+                        'product_name' => $item['title'],
+                        'unit_price' => $item['unit_price'],
+                        'quantity' => $item['quantity'],
+                        'line_total' => $item['line_total'],
+                    ]);
+                }
+
+                $notification = $notifications->sendToUser(
+                    $store->user_id,
+                    $order,
+                    $storeAcceptingOrders ? 'New food order received' : 'Refund required for unavailable store',
+                    $storeAcceptingOrders
                         ? "Paid order #{$order->id} needs your approval at {$store->stores}."
                         : "Order #{$order->id} was automatically rejected because {$store->stores} is not accepting orders.",
-                    'type' => $storeAcceptingOrders ? 'order_created' : 'order_rejected',
-                ]);
+                    $storeAcceptingOrders ? 'order_created' : 'order_rejected'
+                );
                 if (! $storeAcceptingOrders) {
-                    UserNotification::create([
-                        'user_id' => Auth::id(),
-                        'order_id' => $order->id,
-                        'title' => 'Store could not accept your order',
-                        'message' => "Order #{$order->id} was rejected because {$store->stores} is not accepting orders. A refund is being arranged.",
-                        'type' => 'order_rejected',
-                    ]);
+                    $notifications->sendToCustomer(
+                        $order,
+                        'Store could not accept your order',
+                        "Order #{$order->id} was rejected because {$store->stores} is not accepting orders. A refund is being arranged.",
+                        'order_rejected'
+                    );
                 }
 
                 $dispatches[] = [

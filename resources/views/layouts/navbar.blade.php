@@ -382,7 +382,7 @@
             $isAdmin = Auth::check() && Auth::user()->usertype === 'admin';
             $userStore = Auth::check() ? \App\Models\Store::where('user_id', Auth::id())->latest()->first() : null;
             $storeIsApproved = $userStore && $userStore->status === 'approved';
-            $userRider = Auth::check() ? \App\Models\Rider::where('user_id', Auth::id())->where('status', 'approved')->first() : null;
+            $userRider = Auth::check() ? \App\Models\Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->first() : null;
             $activeRole = $isAdmin ? 'admin' : session('active_role', 'user');
             if (! $isAdmin && $activeRole === 'rider' && ! $userRider) {
                 $activeRole = 'user';

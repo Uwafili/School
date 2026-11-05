@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use App\Services\OrderNotificationService;
 
 class Order extends Model
 {
@@ -16,6 +17,27 @@ class Order extends Model
     {
         static::creating(function (Order $order) {
             $order->order_reference ??= 'FS-' . Str::upper((string) Str::uuid());
+        });
+
+        static::created(function (Order $order) {
+            $order->statusHistories()->create(['status' => $order->status]);
+            app(OrderNotificationService::class)->notifyCustomerOfStatusChange($order, $order->status);
+
+            if ($order->rider_id) {
+                $isDelivered = $order->status === 'delivered';
+                $isReleased = in_array($order->status, ['cancelled', 'rejected'], true);
+
+                $order->riderAssignments()->create([
+                    'rider_id' => $order->rider_id,
+                    'status' => $isDelivered ? 'completed' : ($isReleased ? 'released' : ($order->rider_accepted_at ? 'accepted' : 'assigned')),
+                    'assigned_at' => $order->created_at ?? now(),
+                    'acknowledged_at' => $order->rider_accepted_at,
+                    'arrived_at' => $order->rider_arrived_at,
+                    'picked_up_at' => $order->picked_up_at,
+                    'completed_at' => $isDelivered ? ($order->updated_at ?? now()) : null,
+                    'released_at' => $isReleased ? ($order->updated_at ?? now()) : null,
+                ]);
+            }
         });
     }
 
@@ -47,6 +69,9 @@ class Order extends Model
         'refund_message',
         'refund_attempted_at',
         'picked_up_at',
+        'rider_accepted_at',
+        'rider_arrived_at',
+        'estimated_delivery_at',
     ];
 
     /**
@@ -85,6 +110,26 @@ class Order extends Model
         return $this->hasMany(Notification::class);
     }
 
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderBy('id');
+    }
+
+    public function deliveryAttempts(): HasMany
+    {
+        return $this->hasMany(DeliveryAttempt::class)->orderByDesc('attempted_at');
+    }
+
+    public function lineItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function riderAssignments(): HasMany
+    {
+        return $this->hasMany(RiderAssignment::class)->orderByDesc('assigned_at');
+    }
+
     public function unreadMessages()
     {
         return $this->messages()->whereNull('read_at');
@@ -100,6 +145,9 @@ class Order extends Model
             'store_approved_at' => 'datetime',
             'store_rejected_at' => 'datetime',
             'refund_attempted_at' => 'datetime',
+            'rider_accepted_at' => 'datetime',
+            'rider_arrived_at' => 'datetime',
+            'estimated_delivery_at' => 'datetime',
         ];
     }
 }

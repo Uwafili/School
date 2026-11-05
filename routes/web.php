@@ -84,9 +84,12 @@ Route::get('/rider/assigned-orders', [RiderController::class, 'assignedOrders'])
 Route::post('/rider/order/{orderId}/bid', [RiderController::class, 'placeBid'])->name('order.bid');
 Route::post('/rider/order/{orderId}/reject', [RiderController::class, 'rejectOrder'])->name('order.reject');
 Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'])->name('rider.availability');
+Route::post('/rider/order/{orderId}/accept', [RiderController::class, 'acceptAssignment'])->name('rider.accept');
+Route::post('/rider/order/{orderId}/arrived', [RiderController::class, 'confirmArrival'])->name('rider.arrived');
 Route::post('/rider/order/{orderId}/pickup', [RiderController::class, 'confirmPickup'])->name('rider.pickup');
 Route::post('/rider/order/{orderId}/out-for-delivery', [RiderController::class, 'markOutForDelivery'])->name('rider.out-for-delivery');
 Route::post('/rider/order/{orderId}/deliver', [RiderController::class, 'confirmDelivery'])->name('rider.deliver');
+Route::post('/rider/order/{orderId}/failed-attempt', [RiderController::class, 'reportFailedDelivery'])->name('rider.delivery-failed');
 Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount'])->name('notification.unread-count');
     Route::get('/api/approval-status', [\App\Http\Controllers\ApprovalNotificationController::class, 'status'])->name('approval.status');
 
@@ -137,6 +140,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::post('/riders', [AdminController::class, 'createManagedRider'])->name('admin.riders.store');
     Route::get('/riders/{rider}/edit', [AdminController::class, 'editRider'])->name('riders.edit');
     Route::put('/riders/{rider}', [AdminController::class, 'updateRider'])->name('riders.update');
+    Route::post('/riders/{rider}/toggle-active', [AdminController::class, 'toggleRiderActive'])->name('admin.riders.toggle-active');
 
      Route::get('/viewdetail/{id}',[AuthController::class,'viewdetail'])->name('viewdetail');
 
