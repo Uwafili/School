@@ -1,6 +1,6 @@
 @extends('layouts.navbar')
 @section('content')
-    <div class="container mx-auto mt-8">
+    <div class="container mx-auto mt-8" data-submit-feedback>
         <h2 class="text-2xl font-bold mb-4 text-center">User Management</h2>
         <p class="mb-4 text-center text-sm text-gray-600">Passwords are securely hashed and cannot be viewed. Send users a
             reset link if they need access.</p>
@@ -13,7 +13,7 @@
         <section class="mb-6 rounded-lg border border-gray-200 bg-white p-5">
             <h3 class="mb-1 text-lg font-bold">Quick sign up: User</h3>
             <p class="mb-4 text-sm text-gray-600">A password setup link will be sent to the new user.</p>
-            <form action="{{ route('admin.users.store') }}" method="POST" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <form action="{{ route('admin.users.store') }}" method="POST" data-loading-text="Creating user..." class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 @csrf
                 <div>
                     <label for="user-name" class="mb-1 block text-sm font-semibold">Name</label>
@@ -60,13 +60,13 @@
                                 <div class="flex flex-wrap items-center justify-center gap-2">
                                     <a href="{{ route('user.edit', $user) }}"
                                         class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-100">Edit</a>
-                                    <form action="{{ route('user.password-reset', $user) }}" method="POST">
+                                    <form action="{{ route('user.password-reset', $user) }}" method="POST" data-loading-text="Sending reset link...">
                                         @csrf
                                         <button type="submit"
                                             class="rounded-lg bg-yellow-100 px-3 py-2 text-xs font-bold text-yellow-900 transition hover:bg-yellow-200">Reset
                                             key</button>
                                     </form>
-                                    <form action="{{ route('user.role', $user) }}" method="POST">
+                                    <form action="{{ route('user.role', $user) }}" method="POST" data-loading-text="Updating role...">
                                         @csrf
                                         @method('PATCH')
                                         <input type="hidden" name="usertype"
@@ -77,6 +77,7 @@
                                         </button>
                                     </form>
                                     <form action="{{ route('user.destroy', $user) }}" method="POST"
+                                        data-loading-text="Deleting user..."
                                         onsubmit="return confirm('Delete this user?')">
                                         @csrf
                                         @method('DELETE')

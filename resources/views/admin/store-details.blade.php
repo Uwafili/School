@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="min-h-screen bg-gray-100 px-4 py-10">
-    <main class="mx-auto max-w-4xl rounded-xl bg-white p-6 shadow">
+    <main class="mx-auto max-w-4xl rounded-xl bg-white p-6 shadow" data-submit-feedback>
         <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Store details</h1>
@@ -37,6 +37,7 @@
             <a href="{{ route('stores.edit', $store) }}"
                 class="rounded-lg bg-yellow-500 px-4 py-2 font-bold text-white hover:bg-yellow-600">Edit store</a>
             <form method="POST" action="{{ route('admin.stores.destroy', $store) }}"
+                data-loading-text="Deleting store..."
                 onsubmit="return confirm('Delete this store and its related orders and ratings? This cannot be undone.')">
                 @csrf
                 @method('DELETE')

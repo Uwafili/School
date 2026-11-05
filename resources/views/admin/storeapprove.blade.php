@@ -1,7 +1,7 @@
 @extends('layouts.navbar')
 
 @section('content')
-<div class="min-h-screen bg-gray-100 py-10 px-4">
+<div class="min-h-screen bg-gray-100 py-10 px-4" data-submit-feedback>
     <div class="max-w-7xl mx-auto">
         <h1 class="text-4xl font-bold text-yellow-600 mb-2 text-center">🏪 Store Approval Management</h1>
         <p class="text-center text-gray-600 mb-8">Review, view details, and approve/reject store applications</p>
@@ -40,7 +40,7 @@
         <section class="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h2 class="mb-1 text-xl font-bold text-gray-800">Quick sign up: Store owner</h2>
             <p class="mb-4 text-sm text-gray-600">The store will be pending approval. A password setup link will be sent to the owner.</p>
-            <form action="{{ route('admin.stores.store') }}" method="POST" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <form action="{{ route('admin.stores.store') }}" method="POST" data-loading-text="Creating store owner..." class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 @csrf
                 <div><label for="store-name" class="mb-1 block text-sm font-semibold">Store name</label><input id="store-name" name="stores" value="{{ old('stores') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('stores')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
                 <div><label for="store-owner" class="mb-1 block text-sm font-semibold">Owner name</label><input id="store-owner" name="owner" value="{{ old('owner') }}" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2">@error('owner')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
@@ -130,6 +130,7 @@
                                     View details
                                 </a>
                                 <form method="POST" action="{{ route('admin.stores.destroy', $store) }}"
+                                    data-loading-text="Deleting store..."
                                     onsubmit="return confirm('Delete this store and its related orders and ratings? This cannot be undone.')">
                                     @csrf
                                     @method('DELETE')
@@ -138,13 +139,13 @@
                                     </button>
                                 </form>
                                 @if($store->status === 'pending')
-                                    <form method="POST" action="{{ route('store.approve', $store->id) }}" class="inline">
+                                    <form method="POST" action="{{ route('store.approve', $store->id) }}" data-loading-text="Approving store..." class="inline">
                                         @csrf
                                         <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-2 px-4 rounded-lg transition shadow-md">
                                             ✅ Approve
                                         </button>
                                     </form>
-                                    <form method="POST" action="{{ route('store.reject', $store->id) }}" class="inline">
+                                    <form method="POST" action="{{ route('store.reject', $store->id) }}" data-loading-text="Rejecting store..." class="inline">
                                         @csrf
                                         <button type="submit" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-2 px-4 rounded-lg transition shadow-md">
                                             ❌ Reject
@@ -155,7 +156,7 @@
                                         <p class="text-sm font-bold text-green-700">✅ Approved</p>
                                         <p class="text-xs text-green-600">{{ $store->created_at->format('M d, Y') }}</p>
                                     </div>
-                                    <form method="POST" action="{{ route('store.reject', $store->id) }}" class="inline">
+                                    <form method="POST" action="{{ route('store.reject', $store->id) }}" data-loading-text="Revoking approval..." class="inline">
                                         @csrf
                                         <button type="submit" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition" onclick="return confirm('Revoke approval?')">
                                             Revoke
@@ -166,7 +167,7 @@
                                         <p class="text-sm font-bold text-red-700">❌ Rejected</p>
                                         <p class="text-xs text-red-600">{{ $store->updated_at->format('M d, Y') }}</p>
                                     </div>
-                                    <form method="POST" action="{{ route('store.approve', $store->id) }}" class="inline">
+                                    <form method="POST" action="{{ route('store.approve', $store->id) }}" data-loading-text="Approving store..." class="inline">
                                         @csrf
                                         <button type="submit" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition">
                                             Reconsider

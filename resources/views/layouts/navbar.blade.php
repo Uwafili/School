@@ -897,6 +897,30 @@
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('page-loader').style.opacity = '1';
         });
+
+        document.addEventListener('submit', function (event) {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.closest('[data-submit-feedback]')) return;
+
+            if (form.dataset.submitting === 'true') {
+                event.preventDefault();
+                return;
+            }
+
+            const submitButton = event.submitter instanceof HTMLButtonElement
+                ? event.submitter
+                : form.querySelector('button[type="submit"], button:not([type])');
+
+            if (!submitButton) return;
+
+            form.dataset.submitting = 'true';
+            submitButton.disabled = true;
+            submitButton.setAttribute('aria-busy', 'true');
+            submitButton.classList.add('cursor-wait', 'opacity-75');
+            submitButton.innerHTML = '<span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true"></span><span>' +
+                (form.dataset.loadingText || 'Processing...') +
+                '</span>';
+        });
         window.addEventListener('load', function () {
             const loader = document.getElementById('page-loader');
             loader.style.opacity = '0';
