@@ -43,7 +43,7 @@
                         <th class="py-2 px-4 border-b text-center">Num</th>
                         <th class="py-2 px-4 border-b text-left">User Name</th>
                         <th class="py-2 px-4 border-b text-left">Gmail Address</th>
-                        <th class="py-2 px-4 border-b text-center">POC</th>
+                        <th class="py-2 px-4 border-b text-center">Role</th>
                         <th class="py-2 px-4 border-b text-center">Password access</th>
                         <th class="py-2 px-4 border-b text-center">Actions</th>
                     </tr>
@@ -65,6 +65,16 @@
                                         <button type="submit"
                                             class="rounded-lg bg-yellow-100 px-3 py-2 text-xs font-bold text-yellow-900 transition hover:bg-yellow-200">Reset
                                             key</button>
+                                    </form>
+                                    <form action="{{ route('user.role', $user) }}" method="POST">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="usertype"
+                                            value="{{ $user->usertype === 'admin' ? 'user' : 'admin' }}">
+                                        <button type="submit"
+                                            class="rounded-lg bg-blue-100 px-3 py-2 text-xs font-bold text-blue-900 transition hover:bg-blue-200">
+                                            Make {{ $user->usertype === 'admin' ? 'user' : 'admin' }}
+                                        </button>
                                     </form>
                                     <form action="{{ route('user.destroy', $user) }}" method="POST"
                                         onsubmit="return confirm('Delete this user?')">

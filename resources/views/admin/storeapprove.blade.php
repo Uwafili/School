@@ -4,7 +4,7 @@
 <div class="min-h-screen bg-gray-100 py-10 px-4">
     <div class="max-w-7xl mx-auto">
         <h1 class="text-4xl font-bold text-yellow-600 mb-2 text-center">🏪 Store Approval Management</h1>
-        <p class="text-center text-gray-600 mb-8">Review and approve/reject store applications</p>
+        <p class="text-center text-gray-600 mb-8">Review, view details, and approve/reject store applications</p>
 
         @if (session('success'))
             <div class="mb-6 p-4 rounded-lg bg-green-50 text-green-800 border-l-4 border-green-500">
@@ -126,6 +126,17 @@
                                 <a href="{{ route('stores.edit', $store) }}" class="w-full rounded-lg bg-yellow-500 px-4 py-2 text-center font-bold text-white transition hover:bg-yellow-600">
                                     Edit store
                                 </a>
+                                <a href="{{ route('admin.stores.show', $store) }}" class="w-full rounded-lg bg-blue-600 px-4 py-2 text-center font-bold text-white transition hover:bg-blue-700">
+                                    View details
+                                </a>
+                                <form method="POST" action="{{ route('admin.stores.destroy', $store) }}"
+                                    onsubmit="return confirm('Delete this store and its related orders and ratings? This cannot be undone.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="w-full rounded-lg bg-red-600 px-4 py-2 font-bold text-white transition hover:bg-red-700">
+                                        Delete store
+                                    </button>
+                                </form>
                                 @if($store->status === 'pending')
                                     <form method="POST" action="{{ route('store.approve', $store->id) }}" class="inline">
                                         @csrf

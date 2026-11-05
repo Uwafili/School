@@ -121,6 +121,7 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::put('/admin/manage/{user}', [AuthController::class, 'updateManagedUser'])->name('user.update');
     Route::post('/admin/manage/{user}/password-reset', [AuthController::class, 'sendUserPasswordResetLink'])->name('user.password-reset');
     Route::delete('/admin/manage/{user}', [AuthController::class, 'destroyUser'])->name('user.destroy');
+    Route::patch('/admin/manage/{user}/role', [AdminController::class, 'updateUserRole'])->name('user.role');
     
     
     Route::delete('/post/{post}', [PostController::class, 'destroy'])->name('post.destroy');
@@ -140,6 +141,8 @@ Route::middleware(['auth', 'admin'])->group(function(){
     Route::post('/storeapprove', [AdminController::class, 'createManagedStore'])->name('admin.stores.store');
      Route::post('/approve/store/{store}', [AdminController::class, 'approveStore'])->name('store.approve');
      Route::post('/reject/store/{store}', [AdminController::class, 'rejectStore'])->name('store.reject');
+    Route::get('/storeapprove/{store}', [AdminController::class, 'showStore'])->name('admin.stores.show');
+    Route::delete('/storeapprove/{store}', [AdminController::class, 'destroyStore'])->name('admin.stores.destroy');
     Route::get('/storeapprove/{store}/edit', [AdminController::class, 'editStore'])->name('stores.edit');
     Route::put('/storeapprove/{store}', [AdminController::class, 'updateStore'])->name('stores.update');
 
@@ -182,5 +185,4 @@ Route::get('/cookie-test', function () {
 
     return $response;
 });
-
 

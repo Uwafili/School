@@ -254,8 +254,8 @@
                 bottom: 0;
                 left: 0;
                 z-index: 50;
-                display: grid;
-                grid-template-columns: repeat(5, minmax(0, 1fr));
+                display: flex;
+                justify-content: space-around;
                 align-items: end;
                 min-height: 4.5rem;
                 padding: .55rem .35rem calc(.55rem + env(safe-area-inset-bottom));
@@ -271,6 +271,7 @@
 
             .phone-nav-link {
                 display: flex;
+                flex: 1;
                 min-width: 0;
                 min-height: 3.35rem;
                 align-items: center;
@@ -283,6 +284,12 @@
                 font-weight: 700;
                 line-height: 1;
                 transition: color .2s ease, background-color .2s ease;
+            }
+
+            .phone-nav-role {
+                display: flex;
+                flex: 1;
+                min-width: 0;
             }
 
             .phone-nav-link svg {
@@ -496,7 +503,8 @@
                                     @elseif(!$isAdmin && $activeRole === 'user')
                                         @if($userRider)
                                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">Rider View</button></form>
-                                        @elseif($userStore)
+                                        @endif
+                                        @if($userStore)
                                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="w-full text-left px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-yellow-100 dark:hover:bg-gray-700 text-sm">Store View</button></form>
                                         @endif
                                     @endif
@@ -591,7 +599,8 @@
                     @elseif(!$isAdmin && $activeRole === 'user')
                         @if($userRider)
                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="mobile-link w-full text-left">Switch to Rider View</button></form>
-                        @elseif($userStore)
+                        @endif
+                        @if($userStore)
                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="mobile-link w-full text-left">Switch to Store View</button></form>
                         @endif
                     @endif
@@ -695,13 +704,47 @@
                 <span>About</span>
             </a>
             @endif
-            @if($userStore && $activeRole === 'store')
-                <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}" class="phone-nav-link" aria-label="{{ $storeIsApproved ? 'Store dashboard' : 'Store application' }}">
-                    <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18l-1.5-6h-15L3 10Zm1 0v10h16V10M9 20v-6h6v6" />
-                    </svg>
-                    <span>Store</span>
-                </a>
+            @if(!$isAdmin && $userStore)
+                @if($activeRole === 'store')
+                    <a href="{{ $storeIsApproved ? route('storedashboard') : route('store.create') }}" class="phone-nav-link" aria-label="{{ $storeIsApproved ? 'Store dashboard' : 'Store application' }}">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18l-1.5-6h-15L3 10Zm1 0v10h16V10M9 20v-6h6v6" />
+                        </svg>
+                        <span>Store</span>
+                    </a>
+                @else
+                    <form method="POST" action="{{ route('navigation.role') }}" class="phone-nav-role">
+                        @csrf
+                        <input type="hidden" name="role" value="store">
+                        <button type="submit" class="phone-nav-link w-full" aria-label="Switch to Store view">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18l-1.5-6h-15L3 10Zm1 0v10h16V10M9 20v-6h6v6" />
+                            </svg>
+                            <span>Store</span>
+                        </button>
+                    </form>
+                @endif
+            @endif
+            @if(!$isAdmin && $userRider)
+                @if($activeRole === 'rider')
+                    <a href="{{ route('rider.dashboard') }}" class="phone-nav-link" aria-label="Rider dashboard">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 16h14l-1.5-6h-11L5 16Zm1.5 0a1.5 1.5 0 1 0 3 0m5 0a1.5 1.5 0 1 0 3 0M7 10l1-3h8l1 3" />
+                        </svg>
+                        <span>Rider</span>
+                    </a>
+                @else
+                    <form method="POST" action="{{ route('navigation.role') }}" class="phone-nav-role">
+                        @csrf
+                        <input type="hidden" name="role" value="rider">
+                        <button type="submit" class="phone-nav-link w-full" aria-label="Switch to Rider view">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 16h14l-1.5-6h-11L5 16Zm1.5 0a1.5 1.5 0 1 0 3 0m5 0a1.5 1.5 0 1 0 3 0M7 10l1-3h8l1 3" />
+                            </svg>
+                            <span>Rider</span>
+                        </button>
+                    </form>
+                @endif
             @endif
             @auth
                 <button type="button" @click="dashboardMenu = !dashboardMenu" class="phone-nav-link" aria-label="Open dashboard menu" :aria-expanded="dashboardMenu.toString()">
@@ -724,7 +767,8 @@
                         <a href="{{ route('dashboard') }}" class="mobile-link border-b border-gray-100 dark:border-gray-700">My Dashboard</a>
                         @if($userRider)
                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="rider"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left dark:border-gray-700">Rider View</button></form>
-                        @elseif($userStore)
+                        @endif
+                        @if($userStore)
                             <form method="POST" action="{{ route('navigation.role') }}">@csrf<input type="hidden" name="role" value="store"><button type="submit" class="mobile-link w-full border-b border-gray-100 text-left dark:border-gray-700">Store View</button></form>
                         @endif
                     @endif

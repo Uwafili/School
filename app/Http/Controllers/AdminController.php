@@ -118,7 +118,7 @@ class AdminController extends Controller
      */
     public function storeApprove()
     {
-        $stores = Store::orderBy('created_at', 'desc')->get();
+        $stores = Store::with('user')->orderBy('created_at', 'desc')->get();
         
         return view('admin.storeapprove', [
             'stores' => $stores,
@@ -126,6 +126,37 @@ class AdminController extends Controller
             'approvedCount' => Store::where('status', 'approved')->count(),
             'rejectedCount' => Store::where('status', 'rejected')->count(),
         ]);
+    }
+
+    public function updateUserRole(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'usertype' => ['required', 'in:user,admin'],
+        ]);
+
+        if ($user->is(auth()->user())) {
+            return back()->with('error', 'You cannot change your own account role.');
+        }
+
+        $roleUpdated = DB::transaction(function () use ($user, $validated) {
+            if ($user->usertype === 'admin' && $validated['usertype'] === 'user') {
+                $adminCount = User::where('usertype', 'admin')->lockForUpdate()->count();
+
+                if ($adminCount <= 1) {
+                    return false;
+                }
+            }
+
+            $user->update(['usertype' => $validated['usertype']]);
+
+            return true;
+        });
+
+        if (! $roleUpdated) {
+            return back()->with('error', 'The last administrator cannot be changed to a user.');
+        }
+
+        return back()->with('success', "{$user->name}'s role was changed to {$validated['usertype']}.");
     }
 
     /**
@@ -160,6 +191,34 @@ class AdminController extends Controller
         ]);
         
         return back()->with('warning', "❌ Store '{$store->stores}' has been rejected.");
+    }
+
+    public function showStore(Store $store)
+    {
+        $store->load('user');
+
+        return view('admin.store-details', compact('store'));
+    }
+
+    public function destroyStore(Store $store)
+    {
+        $storeName = $store->stores;
+        $image = $store->image;
+
+        DB::transaction(function () use ($store) {
+            $store->delete();
+        });
+
+        $imageDeleted = ! $image || Storage::disk('public')->delete($image);
+
+        if (! $imageDeleted) {
+            return redirect()->route('storeapprove')->with(
+                'warning',
+                "Store '{$storeName}' and its related records were deleted, but the store image could not be removed."
+            );
+        }
+
+        return redirect()->route('storeapprove')->with('success', "Store '{$storeName}' and its related records were deleted.");
     }
 
     public function editRider(Rider $rider)
