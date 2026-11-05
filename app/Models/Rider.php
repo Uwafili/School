@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Rider extends Model
 {
@@ -28,4 +29,14 @@ class Rider extends Model
             {
                 return $this->belongsTo(User::class);
             }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function deliveryBids(): HasMany
+    {
+        return $this->hasMany(DeliveryBid::class);
+    }
 }

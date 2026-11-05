@@ -25,6 +25,45 @@
                 </div>
             @endif
 
+            <section class="mb-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-orange-100 sm:p-7">
+                <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-black text-gray-900">Orders awaiting store approval</h2>
+                        <p class="mt-1 text-sm text-gray-500">Approve orders before they become available to riders.</p>
+                    </div>
+                    <span class="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{{ $pendingApprovalOrders->count() }} pending</span>
+                </div>
+                <div class="space-y-3">
+                    @forelse ($pendingApprovalOrders as $order)
+                        <article class="rounded-xl border border-orange-100 bg-orange-50/60 p-4">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-900">Order #{{ $order->id }} · {{ $order->customer_name }}</p>
+                                    <p class="mt-1 text-sm text-gray-600">{{ $order->items_description }}</p>
+                                    <p class="mt-1 text-sm text-gray-600">{{ $order->customer_address }} · ₦{{ number_format($order->total_price, 2) }}</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    @if ($order->customer_id)
+                                        <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">Message customer</a>
+                                    @endif
+                                    <form method="POST" action="{{ route('store.orders.approve', $order) }}">
+                                        @csrf
+                                        <button type="submit" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('store.orders.reject', $order) }}" class="flex flex-wrap gap-2">
+                                        @csrf
+                                        <input name="reason" maxlength="500" placeholder="Reason (optional)" class="min-w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700" onclick="return confirm('Reject this order and start a Paystack refund?')">Reject</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    @empty
+                        <p class="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">There are no orders waiting for approval.</p>
+                    @endforelse
+                </div>
+            </section>
+
             <section class="mb-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100" aria-live="polite">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <h2 class="text-lg font-black text-gray-900">New order notifications</h2>
@@ -222,7 +261,7 @@
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">🚴 Delivery bids</h2>
                     <div class="space-y-4">
-                        @forelse ($recentOrders->where('status', 'pending') as $order)
+                        @forelse ($recentOrders->where('status', 'pending')->where('store_approval_status', 'approved')->where('payment_status', 'paid') as $order)
                             <div class="rounded-xl border border-orange-200 bg-orange-50 p-5">
                                 <div class="flex flex-wrap items-center justify-between gap-3">
                                     <div>
@@ -282,7 +321,7 @@
                                     </td>
                                     <td class="py-4 px-5">
                                         @if ($order->status === 'pending')
-                                            <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">⏳ Pending</span>
+                                            <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">{{ $order->store_approval_status === 'pending' ? '⌛ Awaiting approval' : '⏳ Pending rider' }}</span>
                                         @elseif ($order->status === 'assigned')
                                             <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">📍 Assigned</span>
                                         @elseif ($order->status === 'accepted')
@@ -299,25 +338,24 @@
                                             <a href="{{ route('order.view', $order->id) }}" class="text-blue-600 hover:text-blue-800 font-semibold text-sm px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition">
                                                 👁️ View
                                             </a>
-                                            @if ($order->status === 'pending')
+                                            @if ($order->customer_id)
+                                                <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition">Message</a>
+                                            @endif
+                                            @if ($order->status === 'pending' && $order->store_approval_status === 'approved' && $order->payment_status === 'paid')
                                                 <button onclick="openAssignModal({{ $order->id }})" class="text-yellow-600 hover:text-yellow-800 font-semibold text-sm px-2 py-1 bg-yellow-50 rounded hover:bg-yellow-100 transition">
                                                     🎯 Assign
                                                 </button>
-                                            @elseif ($order->status === 'accepted' || $order->status === 'assigned')
-                                                <form method="POST" action="{{ route('order.complete', $order->id) }}" style="display:inline;">
+                                            @endif
+                                            @if ($order->store_approval_status === 'pending' && $order->status === 'pending')
+                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
                                                     @csrf
-                                                    <button type="submit" class="text-green-600 hover:text-green-800 font-semibold text-sm px-2 py-1 bg-green-50 rounded hover:bg-green-100 transition" onclick="return confirm('Mark this order as completed?')">
-                                                        ✅ Complete
+                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" onclick="return confirm('Reject this order and start a refund?')">
+                                                        ✕ Reject
                                                     </button>
                                                 </form>
                                             @endif
-                                            @if ($order->status !== 'completed' && $order->status !== 'cancelled')
-                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" onclick="return confirm('Cancel this order?')">
-                                                        ✕ Cancel
-                                                    </button>
-                                                </form>
+                                            @if (in_array($order->status, ['rejected', 'cancelled']) && $order->refund_status === 'pending' && $order->payment_reference && !$order->refund_reference)
+                                                <form method="POST" action="{{ route('store.orders.refund.retry', $order) }}">@csrf<button type="submit" class="text-orange-700 font-semibold text-sm">Retry refund</button></form>
                                             @endif
                                         </div>
                                     </td>

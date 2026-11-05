@@ -17,6 +17,8 @@ Route::middleware('auth')->group(function(){
     Route::post('/navigation-role', [AuthController::class, 'switchNavigationRole'])->name('navigation.role');
     Route::post('/location', [\App\Http\Controllers\LocationController::class, 'update'])->name('location.update');
     Route::post('/orders/{order}/rating', [\App\Http\Controllers\StoreRatingController::class, 'store'])->name('order.rating');
+    Route::post('/customer/orders/{order}/cancel', [DashboardController::class, 'cancelOrder'])->name('customer.orders.cancel');
+    Route::post('/notifications/{notificationId}/read', [DashboardController::class, 'markNotificationAsRead'])->name('notifications.read');
     Route::post('/store/{store}/location', [\App\Http\Controllers\LocationController::class, 'store'])->name('store.location');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
@@ -39,6 +41,9 @@ Route::middleware('auth')->group(function(){
     Route::post('/store', [StoreController::class, 'store'])->name('store');
     Route::get('/storedashboard', [StoreController::class,'Storedashboard'])->name('storedashboard');
     Route::post('/store/notifications/{notificationId}/read', [StoreController::class, 'markStoreNotificationAsRead'])->name('store.notifications.read');
+    Route::post('/store/orders/{order}/approve', [StoreController::class, 'approveOrder'])->name('store.orders.approve');
+    Route::post('/store/orders/{order}/reject', [StoreController::class, 'rejectOrder'])->name('store.orders.reject');
+    Route::post('/store/orders/{order}/refund/retry', [StoreController::class, 'retryRefund'])->name('store.orders.refund.retry');
     
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
     Route::post('/pay', [PaymentController::class, 'pay'])->name('payment.pay');
@@ -185,4 +190,3 @@ Route::get('/cookie-test', function () {
 
     return $response;
 });
-

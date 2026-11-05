@@ -4,16 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Store;
 use App\Models\Order;
-use App\Models\Rider;
 use App\Models\Notification as UserNotification;
 use App\Events\StoreOrderCreated;
-use App\Events\NearbyOrderAvailable;
+use App\Jobs\ProcessPaystackRefund;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
@@ -57,6 +57,20 @@ class PaymentController extends Controller
 
         if (empty($cart)) {
             return redirect()->route('cart')->with('error', 'Your cart is empty.');
+        }
+
+        $cartStoreIds = collect($cart)->map(fn ($item) => $item['store_id'] ?? null);
+        if ($cartStoreIds->contains(null)) {
+            return redirect()->route('cart')->with('error', 'One or more items no longer belong to an approved store. Remove them and try again.');
+        }
+
+        $storeIds = $cartStoreIds->unique()->values();
+        $approvedStoreIds = Store::whereIn('id', $storeIds)
+            ->where('status', 'approved')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+        if ($approvedStoreIds->count() !== $storeIds->count()) {
+            return redirect()->route('cart')->with('error', 'One or more stores are not accepting orders right now. Please review your cart.');
         }
 
         $secretKey = config('services.paystack.secret_key');
@@ -195,108 +209,141 @@ class PaymentController extends Controller
             return redirect()->route('payment.checkout')->with('error', 'Paystack did not confirm this payment. No order was charged.');
         }
 
-        $this->createPaidOrders($request, $payment, 'paystack');
+        $this->createPaidOrders($payment, 'paystack');
         $request->session()->forget(['cart', 'pending_payment']);
 
         return redirect()->route('dashboard')->with('success', 'Payment completed successfully.');
     }
 
-    private function createPaidOrders(Request $request, array $payment, string $method): void
+    private function createPaidOrders(array $payment, string $method): void
     {
         $cart = $payment['cart'] ?? [];
         if (empty($cart)) {
             return;
         }
 
-        $fallbackStore = Store::where('status', 'approved')->first();
-        $groups = collect($cart)->groupBy(fn ($item) => $item['store_id'] ?? $fallbackStore?->id);
-        $groupCount = max(1, $groups->count());
+        $paymentReference = (string) ($payment['reference'] ?? '');
+        if ($paymentReference === '') {
+            throw new \RuntimeException('Verified Paystack payment is missing its reference.');
+        }
 
-        foreach ($groups as $storeId => $items) {
-            $store = Store::find($storeId) ?? $fallbackStore;
-            if (!$store) {
-                continue;
+        $dispatches = DB::transaction(function () use ($cart, $payment, $method, $paymentReference) {
+            $existingOrders = Order::where('payment_reference', $paymentReference)->with('store')->get();
+            if ($existingOrders->isNotEmpty()) {
+                return $existingOrders->map(fn (Order $order) => [
+                    'order' => $order,
+                    'store_user_id' => $order->store->user_id,
+                    'notification' => UserNotification::where('user_id', $order->store->user_id)
+                        ->where('order_id', $order->id)
+                        ->latest()
+                        ->first(),
+                ])->all();
             }
 
-            $itemsTotal = $items->sum(fn ($item) => $item['price'] * $item['quantity']);
-            $deliveryFee = (float) ($payment['delivery_fee'] ?? 0) / $groupCount;
-            $description = $items->map(fn ($item) => $item['title'] . ' x' . $item['quantity'])->implode(', ');
+            $groups = collect($cart)->groupBy('store_id', true);
+            $groupCount = $groups->count();
+            $deliveryFeeCents = (int) round(((float) ($payment['delivery_fee'] ?? 0)) * 100);
+            $baseDeliveryFeeCents = intdiv($deliveryFeeCents, $groupCount);
+            $remainderDeliveryFeeCents = $deliveryFeeCents % $groupCount;
+            $groupIndex = 0;
+            $dispatches = [];
 
-            $order = Order::create([
-                'store_id' => $store->id,
-                'customer_id' => Auth::id(),
-                'customer_name' => Auth::user()->name,
-                'customer_phone' => Auth::user()->phone ?? 'Not provided',
-                'customer_address' => $payment['delivery_method'] === 'pickup'
-                    ? ($payment['pickup_station'] ?? 'Pickup station')
-                    : ($payment['delivery_address'] ?? 'Location not provided'),
-                'total_price' => $itemsTotal + $deliveryFee,
-                'delivery_fee' => $deliveryFee,
-                'items_description' => $description,
-                'status' => 'pending',
-                'payment_status' => 'paid',
-                'payment_method' => $method,
-                'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
-            ]);
+            foreach ($groups as $storeId => $items) {
+                $store = Store::find($storeId);
+                if (! $store) {
+                    throw new \RuntimeException('A store in the verified order is no longer available.');
+                }
+                $storeAcceptingOrders = $store->status === 'approved';
 
-            $notification = UserNotification::create([
-                'user_id' => $store->user_id,
-                'order_id' => $order->id,
-                'title' => 'New food order received',
-                'message' => "Order #{$order->id} has been placed at {$store->stores}.",
-                'type' => 'order_assigned',
-            ]);
+                $itemsTotal = $items->sum(fn ($item) => $item['price'] * $item['quantity']);
+                $groupDeliveryFeeCents = $baseDeliveryFeeCents + ($groupIndex < $remainderDeliveryFeeCents ? 1 : 0);
+                $deliveryFee = $groupDeliveryFeeCents / 100;
+                $groupIndex++;
+                $description = $items->map(fn ($item) => $item['title'] . ' x' . $item['quantity'])->implode(', ');
+                $itemsSnapshot = $items->map(fn ($item, $id) => [
+                    'post_id' => (int) $id,
+                    'title' => $item['title'],
+                    'unit_price' => (float) $item['price'],
+                    'quantity' => (int) $item['quantity'],
+                    'line_total' => round((float) $item['price'] * (int) $item['quantity'], 2),
+                ])->values()->all();
 
-            if (config('broadcasting.default') === 'pusher' && config('broadcasting.connections.pusher.key')) {
-                event(new StoreOrderCreated($store->user_id, [
-                    'id' => $notification->id,
+                $order = Order::create([
+                    'store_id' => $store->id,
+                    'customer_id' => Auth::id(),
+                    'customer_name' => Auth::user()->name,
+                    'customer_phone' => Auth::user()->phone ?? 'Not provided',
+                    'customer_address' => $payment['delivery_method'] === 'pickup'
+                        ? ($payment['pickup_station'] ?? 'Pickup station')
+                        : ($payment['delivery_address'] ?? 'Location not provided'),
+                    'total_price' => $itemsTotal + $deliveryFee,
+                    'delivery_fee' => $deliveryFee,
+                    'items_description' => $description,
+                    'items' => $itemsSnapshot,
+                    'status' => $storeAcceptingOrders ? 'pending' : 'rejected',
+                    'store_approval_status' => $storeAcceptingOrders ? 'pending' : 'rejected',
+                    'store_rejected_at' => $storeAcceptingOrders ? null : now(),
+                    'store_rejection_reason' => $storeAcceptingOrders ? null : 'Store is no longer accepting orders.',
+                    'payment_status' => $storeAcceptingOrders ? 'paid' : 'refund_pending',
+                    'payment_method' => $method,
+                    'payment_reference' => $paymentReference,
+                    'refund_status' => $storeAcceptingOrders ? 'none' : 'pending',
+                    'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
+                ]);
+
+                $notification = UserNotification::create([
+                    'user_id' => $store->user_id,
                     'order_id' => $order->id,
-                    'title' => $notification->title,
-                    'message' => $notification->message,
-                ]));
-                $this->broadcastNearbyOrder($order, $store);
+                    'title' => $storeAcceptingOrders ? 'New food order received' : 'Refund required for unavailable store',
+                    'message' => $storeAcceptingOrders
+                        ? "Paid order #{$order->id} needs your approval at {$store->stores}."
+                        : "Order #{$order->id} was automatically rejected because {$store->stores} is not accepting orders.",
+                    'type' => $storeAcceptingOrders ? 'order_created' : 'order_rejected',
+                ]);
+                if (! $storeAcceptingOrders) {
+                    UserNotification::create([
+                        'user_id' => Auth::id(),
+                        'order_id' => $order->id,
+                        'title' => 'Store could not accept your order',
+                        'message' => "Order #{$order->id} was rejected because {$store->stores} is not accepting orders. A refund is being arranged.",
+                        'type' => 'order_rejected',
+                    ]);
+                }
+
+                $dispatches[] = [
+                    'order' => $order,
+                    'store_user_id' => $store->user_id,
+                    'notification' => $notification,
+                ];
+            }
+
+            return $dispatches;
+        });
+
+        foreach ($dispatches as $dispatch) {
+            if ($dispatch['order']->refund_status === 'pending') {
+                ProcessPaystackRefund::dispatch($dispatch['order']->id);
             }
         }
-    }
 
-    private function broadcastNearbyOrder(Order $order, Store $store): void
-    {
-        if ($store->latitude === null || $store->longitude === null) {
+        if (config('broadcasting.default') !== 'pusher' || ! config('broadcasting.connections.pusher.key')) {
             return;
         }
 
-        $radius = (float) config('services.delivery.radius_km', 25);
-        $latitude = (float) $store->latitude;
-        $longitude = (float) $store->longitude;
-        $latitudeRange = $radius / 111.045;
-        $longitudeRange = $radius / max(111.045 * abs(cos(deg2rad($latitude))), 0.01);
-
-        $riders = Rider::where('status', 'approved')
-            ->where('is_online', true)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->whereBetween('latitude', [$latitude - $latitudeRange, $latitude + $latitudeRange])
-            ->whereBetween('longitude', [$longitude - $longitudeRange, $longitude + $longitudeRange])
-            ->get(['id', 'latitude', 'longitude']);
-
-        foreach ($riders as $rider) {
-            if ($this->distanceInKm($latitude, $longitude, (float) $rider->latitude, (float) $rider->longitude) > $radius) {
+        foreach ($dispatches as $dispatch) {
+            $notification = $dispatch['notification'];
+            if (! $notification) {
                 continue;
             }
 
-            event(new NearbyOrderAvailable($rider->id, [
-                'id' => $order->id,
-                'store_name' => $store->stores,
-                'store_address' => $store->address,
-                'customer_address' => $order->customer_address,
-                'items_description' => $order->items_description,
-                'total_price' => (float) $order->total_price,
-                'delivery_fee' => (float) $order->delivery_fee,
-                'distance_km' => round($this->distanceInKm($latitude, $longitude, (float) $rider->latitude, (float) $rider->longitude), 1),
+            event(new StoreOrderCreated($dispatch['store_user_id'], [
+                'id' => $notification->id,
+                'order_id' => $notification->order_id,
+                'title' => $notification->title,
+                'message' => $notification->message,
             ]));
         }
     }
 
 
 }
-

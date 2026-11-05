@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\Order;
+use App\Services\OrderNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MessageController extends Controller
 {
@@ -25,11 +27,17 @@ class MessageController extends Controller
             ->oldest()
             ->get();
 
+        Message::where('order_id', $order->id)
+            ->where('sender_id', $user)
+            ->where('receiver_id', Auth::id())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
         $contact = \App\Models\User::findOrFail($user);
         return view('chat', compact('messages', 'order', 'contact'));
     }
 
-    public function send(Request $request, Order $order)
+    public function send(Request $request, Order $order, OrderNotificationService $notifications)
     {
         $validated = $request->validate([
             'receiver_id' => ['required', 'integer'],
@@ -38,12 +46,22 @@ class MessageController extends Controller
 
         $this->authorizeParticipant($order, (int) $validated['receiver_id']);
 
-        Message::create([
-            'order_id' => $order->id,
-            'sender_id' => Auth::id(),
-            'receiver_id' => $validated['receiver_id'],
-            'message' => $validated['message'],
-        ]);
+        DB::transaction(function () use ($order, $validated, $notifications) {
+            Message::create([
+                'order_id' => $order->id,
+                'sender_id' => Auth::id(),
+                'receiver_id' => $validated['receiver_id'],
+                'message' => $validated['message'],
+            ]);
+
+            $notifications->sendToUser(
+                (int) $validated['receiver_id'],
+                $order,
+                'New order message',
+                'You received a new message about order #' . $order->id . '.',
+                'order_message'
+            );
+        });
 
         return back()->with('success', 'Message sent.');
     }
@@ -51,7 +69,7 @@ class MessageController extends Controller
     private function authorizeParticipant(Order $order, int $contactId): void
     {
         $order->loadMissing(['store', 'rider']);
-        $customerId = $order->customer_id ?: \App\Models\User::where('name', $order->customer_name)->value('id');
+        $customerId = $order->customer_id;
         $vendorId = $order->store?->user_id;
         $riderId = $order->rider?->user_id;
         $allowed = array_values(array_filter([$customerId, $vendorId, $riderId]));

@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Order;
+use App\Models\Notification as UserNotification;
 use App\Models\Store;
 use App\Models\Rider;
 use App\Models\StoreRating;
+use App\Jobs\ProcessPaystackRefund;
+use App\Services\OrderNotificationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -54,14 +58,7 @@ class DashboardController extends Controller
       });
 
       $orders = Order::with(['store.user', 'rider.user'])
-         ->where(function ($query) {
-            $query->where('customer_id', Auth::id())
-               ->orWhere(function ($legacy) {
-                  $legacy->whereNull('customer_id')
-                     ->where('customer_name', Auth::user()->name);
-               });
-         })
-         ->whereNotIn('status', ['cancelled', 'rejected'])
+         ->where('customer_id', Auth::id())
          ->latest()
          ->get();
 
@@ -79,16 +76,63 @@ class DashboardController extends Controller
          ->whereIn('order_id', $orders->pluck('id'))
          ->get()
          ->keyBy('order_id');
+      $orderNotifications = UserNotification::where('user_id', Auth::id())
+         ->whereNotNull('order_id')
+         ->latest()
+         ->limit(10)
+         ->get();
 
-      return view('users.dashboard', compact('posts', 'orders', 'stores', 'riders', 'ratings', 'featuredSlides', 'topStore'));
+      return view('users.dashboard', compact('posts', 'orders', 'stores', 'riders', 'ratings', 'featuredSlides', 'topStore', 'orderNotifications'));
+   }
+
+   public function cancelOrder(Order $order, OrderNotificationService $notifications)
+   {
+      $cancelledOrder = DB::transaction(function () use ($order) {
+         $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+         abort_unless($lockedOrder->customer_id === Auth::id(), 403);
+
+         if ($lockedOrder->status !== 'pending' || $lockedOrder->store_approval_status !== 'pending') {
+            return null;
+         }
+
+         $isPaid = $lockedOrder->payment_status === 'paid';
+         $lockedOrder->update([
+            'status' => 'cancelled',
+            'refund_status' => $isPaid ? 'pending' : 'none',
+            'payment_status' => $isPaid ? 'refund_pending' : $lockedOrder->payment_status,
+         ]);
+
+         return $lockedOrder->fresh();
+      });
+
+      if (! $cancelledOrder) {
+         return back()->with('error', 'Orders can only be cancelled while waiting for store approval.');
+      }
+
+      $notifications->sendToStore(
+         $cancelledOrder,
+         'Customer cancelled an order',
+         "Order #{$cancelledOrder->id} was cancelled by the customer.",
+         'order_cancelled'
+      );
+      if ($cancelledOrder->payment_status === 'refund_pending') {
+         ProcessPaystackRefund::dispatch($cancelledOrder->id);
+      }
+
+      return back()->with('success', 'Order cancelled.');
+   }
+
+   public function markNotificationAsRead($notificationId)
+   {
+      $notification = UserNotification::where('user_id', Auth::id())->findOrFail($notificationId);
+      $notification->markAsRead();
+
+      return back();
    }
 
    public function liveRiderLocations()
    {
-      $orders = Order::where(function ($query) {
-            $query->where('customer_id', Auth::id())
-               ->orWhere(fn ($legacy) => $legacy->whereNull('customer_id')->where('customer_name', Auth::user()->name));
-         })
+      $orders = Order::where('customer_id', Auth::id())
          ->where('status', 'accepted')
          ->whereNotNull('picked_up_at')
          ->whereNotNull('rider_id')

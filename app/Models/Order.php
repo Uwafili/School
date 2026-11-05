@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
@@ -19,12 +21,22 @@ class Order extends Model
         'total_price',
         'delivery_fee',
         'items_description',
+        'items',
         'status',
+        'store_approval_status',
+        'store_approved_at',
+        'store_rejected_at',
+        'store_rejection_reason',
         'notes',
         'recipient_code',
         'recipient_verified_at',
         'payment_status',
         'payment_method',
+        'payment_reference',
+        'refund_status',
+        'refund_reference',
+        'refund_message',
+        'refund_attempted_at',
         'picked_up_at',
     ];
 
@@ -54,12 +66,26 @@ class Order extends Model
         return $this->hasMany(DeliveryBid::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
     protected function casts(): array
     {
         return [
             'recipient_verified_at' => 'datetime',
             'picked_up_at' => 'datetime',
             'delivery_fee' => 'decimal:2',
+            'items' => 'array',
+            'store_approved_at' => 'datetime',
+            'store_rejected_at' => 'datetime',
+            'refund_attempted_at' => 'datetime',
         ];
     }
 }

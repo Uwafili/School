@@ -19,4 +19,11 @@ class Message extends Model
     public function order(){
         return $this->belongsTo(Order::class);
     }
+
+    protected function casts(): array
+    {
+        return [
+            'read_at' => 'datetime',
+        ];
+    }
 }

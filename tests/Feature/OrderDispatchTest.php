@@ -11,6 +11,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\ProcessPaystackRefund;
 use Tests\TestCase;
 
 class OrderDispatchTest extends TestCase
@@ -166,6 +168,27 @@ class OrderDispatchTest extends TestCase
             'title' => 'New food order received',
         ]);
         $this->assertSame('Jollof Rice x1', $order->items_description);
+        $this->assertSame('pending', $order->store_approval_status);
+        $this->assertSame('paystack-test-reference', $order->payment_reference);
+        Event::assertNotDispatched(NearbyOrderAvailable::class);
+
+        $this->actingAs($customer)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Order history')
+            ->assertSee('Store approval:');
+        $this->actingAs($owner)->get(route('storedashboard'))
+            ->assertOk()
+            ->assertSee('Orders awaiting store approval')
+            ->assertSee('Jollof Rice x1');
+
+        $this->actingAs($owner)
+            ->post(route('store.orders.approve', $order))
+            ->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'store_approval_status' => 'approved']);
+        $this->get(route('order.view', $order->id))
+            ->assertOk()
+            ->assertSee('Payment Summary')
+            ->assertSee('Store approval');
         Event::assertDispatched(NearbyOrderAvailable::class, fn ($event) =>
             $event->riderId === $rider->id
             && $event->broadcastOn()[0]->name === 'private-riders.' . $rider->id
@@ -180,6 +203,16 @@ class OrderDispatchTest extends TestCase
     public function test_checkout_initializes_paystack_with_the_server_calculated_amount(): void
     {
         $customer = User::factory()->create();
+        $storeOwner = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $storeOwner->id,
+            'stores' => 'Test Kitchen',
+            'owner' => 'Store Owner',
+            'email' => $storeOwner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
         config(['services.paystack.secret_key' => 'sk_test_example']);
         Http::fake([
             'https://api.paystack.co/transaction/initialize' => Http::response([
@@ -197,7 +230,7 @@ class OrderDispatchTest extends TestCase
 
         $this->actingAs($customer)->withSession([
             'cart' => [[
-                'store_id' => 1,
+                'store_id' => $store->id,
                 'title' => 'Jollof Rice',
                 'price' => 2400,
                 'quantity' => 1,
@@ -400,6 +433,8 @@ class OrderDispatchTest extends TestCase
 
         $assignedOrder = $this->makeOrder($store, $customer, $rider, 'Assigned items');
         $nearbyOrder = $this->makeOrder($store, $customer, null, 'Nearby paid items');
+        $approvalPendingOrder = $this->makeOrder($store, $customer, null, 'Awaiting store approval item');
+        $approvalPendingOrder->update(['store_approval_status' => 'pending']);
         $farStore = Store::create([
             'user_id' => $storeOwner->id,
             'stores' => 'Distant Kitchen',
@@ -418,6 +453,7 @@ class OrderDispatchTest extends TestCase
             ->assertOk()
             ->assertSee('Order #' . $assignedOrder->id)
             ->assertSee('Order #' . $nearbyOrder->id)
+            ->assertDontSee('Awaiting store approval item')
             ->assertDontSee('Order #' . $farOrder->id);
 
         $this->get(route('rider.assigned-orders'))
@@ -432,6 +468,278 @@ class OrderDispatchTest extends TestCase
         $this->from(route('rider.dashboard'))->post(route('order.bid', $farOrder->id), ['amount' => 300])
             ->assertSessionHas('error');
         $this->assertDatabaseMissing('delivery_bids', ['order_id' => $farOrder->id, 'rider_id' => $rider->id]);
+    }
+
+    public function test_store_rejection_queues_refund_and_persists_reason(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Refund Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Rice x1');
+        $order->update([
+            'store_approval_status' => 'pending',
+            'payment_reference' => 'paystack-refund-test',
+        ]);
+
+        $this->actingAs($owner)
+            ->post(route('store.orders.reject', $order), ['reason' => 'Item unavailable'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'rejected',
+            'store_approval_status' => 'rejected',
+            'store_rejection_reason' => 'Item unavailable',
+            'payment_status' => 'refund_pending',
+            'refund_status' => 'pending',
+        ]);
+        Queue::assertPushed(ProcessPaystackRefund::class, fn ($job) => $job->orderId === $order->id);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $customer->id,
+            'order_id' => $order->id,
+            'type' => 'order_rejected',
+        ]);
+    }
+
+    public function test_payment_to_a_store_that_stops_accepting_orders_is_rejected_and_refunded(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Unavailable Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'rejected',
+        ]);
+        config(['services.paystack.secret_key' => 'sk_test_example']);
+        Http::fake([
+            'https://api.paystack.co/transaction/verify/store-status-changed' => Http::response([
+                'status' => true,
+                'data' => [
+                    'status' => 'success',
+                    'reference' => 'store-status-changed',
+                    'amount' => 100000,
+                    'currency' => 'NGN',
+                    'customer' => ['email' => $customer->email],
+                ],
+            ]),
+        ]);
+
+        $this->actingAs($customer)->withSession([
+            'pending_payment' => [
+                'amount' => 1000,
+                'delivery_fee' => 0,
+                'delivery_method' => 'pickup',
+                'reference' => 'store-status-changed',
+                'cart' => [
+                    42 => [
+                        'store_id' => $store->id,
+                        'title' => 'Meal',
+                        'price' => 1000,
+                        'quantity' => 1,
+                    ],
+                ],
+            ],
+        ])->get(route('payment.paystack.callback', ['reference' => 'store-status-changed']))
+            ->assertRedirect(route('dashboard'));
+
+        $order = Order::where('payment_reference', 'store-status-changed')->firstOrFail();
+        $this->assertSame('rejected', $order->status);
+        $this->assertSame('pending', $order->refund_status);
+        Queue::assertPushed(ProcessPaystackRefund::class, fn ($job) => $job->orderId === $order->id);
+    }
+
+    public function test_customer_can_cancel_only_before_store_approval_and_gets_a_refund(): void
+    {
+        Queue::fake();
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Customer Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Rice x1');
+        $order->update([
+            'store_approval_status' => 'pending',
+            'payment_reference' => 'paystack-customer-cancel',
+        ]);
+
+        $this->actingAs($customer)
+            ->post(route('customer.orders.cancel', $order))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'cancelled',
+            'payment_status' => 'refund_pending',
+            'refund_status' => 'pending',
+        ]);
+        Queue::assertPushed(ProcessPaystackRefund::class, fn ($job) => $job->orderId === $order->id);
+    }
+
+    public function test_paystack_refund_job_marks_a_confirmed_refund_and_notifies_customer(): void
+    {
+        $customer = User::factory()->create();
+        $owner = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Refunded Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Refunded items');
+        $order->update([
+            'status' => 'rejected',
+            'payment_status' => 'refund_pending',
+            'store_approval_status' => 'rejected',
+            'payment_reference' => 'paystack-confirmed-refund',
+            'refund_status' => 'pending',
+        ]);
+        config(['services.paystack.secret_key' => 'sk_test_example']);
+        Http::fake([
+            'https://api.paystack.co/refund' => Http::response([
+                'status' => true,
+                'data' => ['status' => 'processed', 'id' => 999],
+            ]),
+        ]);
+
+        ProcessPaystackRefund::dispatchSync($order->id);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'refund_status' => 'refunded',
+            'refund_reference' => '999',
+            'payment_status' => 'refunded',
+        ]);
+        Http::assertSent(fn ($request) =>
+            $request->url() === 'https://api.paystack.co/refund'
+            && $request['transaction'] === 'paystack-confirmed-refund'
+            && $request['amount'] === '250000'
+        );
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $customer->id,
+            'order_id' => $order->id,
+            'type' => 'order_refund',
+        ]);
+    }
+
+    public function test_order_chat_notifies_the_recipient_and_marks_messages_read(): void
+    {
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Chat Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Rice x1');
+
+        $this->actingAs($owner)
+            ->post(route('chat.send', $order), [
+                'receiver_id' => $customer->id,
+                'message' => 'Your order is being prepared.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $customer->id,
+            'order_id' => $order->id,
+            'type' => 'order_message',
+        ]);
+
+        $messageId = \App\Models\Message::where('order_id', $order->id)->value('id');
+        $this->actingAs($customer)
+            ->get(route('chat.show', [$order->id, $owner->id]))
+            ->assertOk()
+            ->assertSee('Your order is being prepared.');
+        $this->assertDatabaseHas('messages', ['id' => $messageId]);
+        $this->assertNotNull(\App\Models\Message::findOrFail($messageId)->read_at);
+    }
+
+    public function test_rider_delivery_is_confirmed_by_recipient_code_and_declines_return_orders_to_store(): void
+    {
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $riderUser = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Delivery Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $rider = Rider::create([
+            'user_id' => $riderUser->id,
+            'name' => $riderUser->name,
+            'email' => $riderUser->email,
+            'phone' => '08011112222',
+            'license' => 'LIC-1',
+            'vehicle_number' => 'ABC-123',
+            'vehicle' => 'Motorbike',
+            'status' => 'approved',
+            'is_online' => true,
+        ]);
+        $order = $this->makeOrder($store, $customer, $rider, 'Delivery items');
+        $order->update(['recipient_code' => '1234']);
+
+        $this->actingAs($riderUser)
+            ->post(route('order.accept', $order))
+            ->assertRedirect(route('rider.assigned-orders'));
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'accepted']);
+
+        $this->post(route('rider.pickup', $order))
+            ->assertRedirect();
+        $this->assertNotNull($order->fresh()->picked_up_at);
+
+        $this->post(route('rider.deliver', $order), ['recipient_code' => '1234'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'completed',
+            'recipient_code' => '1234',
+        ]);
+        $this->assertNotNull($order->fresh()->recipient_verified_at);
+
+        $declinedOrder = $this->makeOrder($store, $customer, $rider, 'Declined items');
+        $this->post(route('order.reject', $declinedOrder), ['reason' => 'Vehicle issue'])
+            ->assertRedirect(route('rider.assigned-orders'));
+        $this->assertDatabaseHas('orders', [
+            'id' => $declinedOrder->id,
+            'status' => 'pending',
+            'rider_id' => null,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $owner->id,
+            'order_id' => $declinedOrder->id,
+            'type' => 'order_rider_declined',
+        ]);
     }
 
     public function test_food_selection_pages_show_eight_products_per_page(): void
