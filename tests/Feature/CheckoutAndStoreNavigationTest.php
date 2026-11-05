@@ -33,6 +33,7 @@ class CheckoutAndStoreNavigationTest extends TestCase
             'payment_method' => 'paystack',
             'delivery_method' => 'pickup',
             'pickup_station' => 'ikeja',
+            'customer_phone' => '08012345678',
         ])->assertRedirect(route('cart'))
             ->assertSessionHas('error', 'Your cart could not be loaded. Please add your items again.')
             ->assertSessionMissing('cart');

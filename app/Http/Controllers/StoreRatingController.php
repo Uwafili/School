@@ -12,7 +12,7 @@ class StoreRatingController extends Controller
     public function store(Request $request, Order $order)
     {
         abort_unless($order->customer_id === Auth::id(), 403);
-        abort_unless($order->status === 'completed', 422, 'You can rate an order after delivery.');
+        abort_unless($order->status === 'delivered', 422, 'You can rate an order after delivery.');
 
         $validated = $request->validate([
             'rating' => ['required', 'integer', 'between:1,5'],

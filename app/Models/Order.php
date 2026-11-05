@@ -6,13 +6,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::creating(function (Order $order) {
+            $order->order_reference ??= 'FS-' . Str::upper((string) Str::uuid());
+        });
+    }
+
     protected $fillable = [
         'store_id',
+        'order_reference',
         'rider_id',
         'customer_id',
         'customer_name',
@@ -74,6 +83,11 @@ class Order extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function unreadMessages()
+    {
+        return $this->messages()->whereNull('read_at');
     }
 
     protected function casts(): array

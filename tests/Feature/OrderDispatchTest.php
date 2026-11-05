@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Rider;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\DeliveryBid;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -150,6 +151,7 @@ class OrderDispatchTest extends TestCase
                 'delivery_fee' => 500,
                 'delivery_method' => 'delivery',
                 'delivery_address' => 'Customer Address',
+                'customer_phone' => '08012345678',
                 'reference' => 'paystack-test-reference',
                 'cart' => [[
                     'store_id' => $store->id,
@@ -185,6 +187,11 @@ class OrderDispatchTest extends TestCase
             ->post(route('store.orders.approve', $order))
             ->assertRedirect();
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'store_approval_status' => 'approved']);
+        $this->actingAs($owner)
+            ->post(route('store.orders.preparing', $order))
+            ->assertRedirect();
+        $this->post(route('store.orders.ready', $order))->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'ready_for_pickup']);
         $this->get(route('order.view', $order->id))
             ->assertOk()
             ->assertSee('Payment Summary')
@@ -198,6 +205,116 @@ class OrderDispatchTest extends TestCase
         $this->actingAs($owner)->get(route('storedashboard'))
             ->assertOk()
             ->assertSee('New food order received');
+    }
+
+    public function test_order_chat_supports_preapproval_messages_polling_and_unread_indicators(): void
+    {
+        $owner = User::factory()->create(['name' => 'Store Owner']);
+        $customer = User::factory()->create(['name' => 'Order Customer']);
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Chat Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Rice x1');
+        $order->update(['status' => 'pending', 'store_approval_status' => 'pending']);
+
+        $this->actingAs($customer)->post(route('chat.send', $order), [
+            'receiver_id' => $owner->id,
+            'message' => 'Please include utensils.',
+        ])->assertRedirect();
+        $firstMessageId = \App\Models\Message::where('order_id', $order->id)->value('id');
+
+        $this->actingAs($owner)->get(route('storedashboard'))
+            ->assertOk()
+            ->assertSee('1 new');
+        $this->post(route('store.orders.preparing', $order))
+            ->assertRedirect()
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending']);
+        $this->post(route('chat.send', $order), [
+            'receiver_id' => $customer->id,
+            'message' => 'Certainly, we will include them.',
+        ])->assertRedirect();
+
+        $this->actingAs($customer)->get(route('chat.show', [$order, $owner->id]))
+            ->assertOk()
+            ->assertSee('Store Owner')
+            ->assertSee('Please include utensils.')
+            ->assertSee('Certainly, we will include them.')
+            ->assertSee('Unread');
+
+        $this->get(route('chat.messages', [$order, $owner->id]) . '?after=' . $firstMessageId)
+            ->assertOk()
+            ->assertJsonPath('messages.0.message', 'Certainly, we will include them.');
+        $this->assertDatabaseMissing('messages', [
+            'order_id' => $order->id,
+            'sender_id' => $owner->id,
+            'receiver_id' => $customer->id,
+            'read_at' => null,
+        ]);
+    }
+
+    public function test_store_can_assign_only_ready_orders_and_accept_a_delivery_bid(): void
+    {
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Dispatch Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $riderUser = User::factory()->create();
+        $rider = Rider::create([
+            'user_id' => $riderUser->id,
+            'name' => $riderUser->name,
+            'email' => $riderUser->email,
+            'phone' => '08011112222',
+            'license' => 'LIC-1',
+            'vehicle_number' => 'ABC-123',
+            'vehicle' => 'Motorbike',
+            'status' => 'approved',
+            'is_online' => true,
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Manual assignment');
+
+        $this->actingAs($owner)->post(route('order.assign'), [
+            'order_id' => $order->id,
+            'rider_id' => $rider->id,
+            'delivery_fee' => 450,
+        ])->assertRedirect(route('storedashboard'));
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'rider_assigned',
+            'rider_id' => $rider->id,
+            'delivery_fee' => 450,
+        ]);
+
+        $bidOrder = $this->makeOrder($store, $customer, null, 'Bid assignment');
+        $bid = DeliveryBid::create([
+            'order_id' => $bidOrder->id,
+            'rider_id' => $rider->id,
+            'amount' => 350,
+            'status' => 'pending',
+        ]);
+
+        $this->post(route('order.bid.accept', $bid->id))
+            ->assertRedirect(route('storedashboard'));
+        $this->assertDatabaseHas('orders', [
+            'id' => $bidOrder->id,
+            'status' => 'rider_assigned',
+            'rider_id' => $rider->id,
+            'delivery_fee' => 350,
+        ]);
+        $this->assertDatabaseHas('delivery_bids', ['id' => $bid->id, 'status' => 'accepted']);
     }
 
     public function test_checkout_initializes_paystack_with_the_server_calculated_amount(): void
@@ -240,10 +357,12 @@ class OrderDispatchTest extends TestCase
             'payment_method' => 'paystack',
             'delivery_method' => 'pickup',
             'pickup_station' => 'ikeja',
+            'customer_phone' => '08012345678',
         ])->assertRedirect('https://checkout.paystack.com/test-session');
 
         $this->assertSame(2400, session('pending_payment.amount'));
         $this->assertSame('Jollof Rice', session('pending_payment.cart.0.title'));
+        $this->assertSame('08012345678', session('pending_payment.customer_phone'));
         Http::assertSent(fn ($request) =>
             $request->url() === 'https://api.paystack.co/transaction/initialize'
             && $request['amount'] === '240000'
@@ -461,7 +580,7 @@ class OrderDispatchTest extends TestCase
             ->assertSee('Order #' . $nearbyOrder->id)
             ->assertDontSee('Order #' . $farOrder->id);
 
-        $this->post(route('order.accept', $nearbyOrder->id))->assertNotFound();
+        $this->post(route('rider.pickup', $nearbyOrder->id))->assertNotFound();
         $this->from(route('rider.dashboard'))->post(route('order.bid', $nearbyOrder->id), ['amount' => 300])
             ->assertRedirect(route('rider.dashboard'));
         $this->assertDatabaseHas('delivery_bids', ['order_id' => $nearbyOrder->id, 'rider_id' => $rider->id]);
@@ -486,6 +605,7 @@ class OrderDispatchTest extends TestCase
         ]);
         $order = $this->makeOrder($store, $customer, null, 'Rice x1');
         $order->update([
+            'status' => 'pending',
             'store_approval_status' => 'pending',
             'payment_reference' => 'paystack-refund-test',
         ]);
@@ -543,6 +663,7 @@ class OrderDispatchTest extends TestCase
                 'amount' => 1000,
                 'delivery_fee' => 0,
                 'delivery_method' => 'pickup',
+                'customer_phone' => '08012345678',
                 'reference' => 'store-status-changed',
                 'cart' => [
                     42 => [
@@ -578,6 +699,7 @@ class OrderDispatchTest extends TestCase
         ]);
         $order = $this->makeOrder($store, $customer, null, 'Rice x1');
         $order->update([
+            'status' => 'pending',
             'store_approval_status' => 'pending',
             'payment_reference' => 'paystack-customer-cancel',
         ]);
@@ -681,6 +803,38 @@ class OrderDispatchTest extends TestCase
         $this->assertNotNull(\App\Models\Message::findOrFail($messageId)->read_at);
     }
 
+    public function test_customer_can_view_order_details_using_a_unique_order_reference(): void
+    {
+        $owner = User::factory()->create();
+        $customer = User::factory()->create();
+        $otherCustomer = User::factory()->create();
+        $store = Store::create([
+            'user_id' => $owner->id,
+            'stores' => 'Details Kitchen',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $order = $this->makeOrder($store, $customer, null, 'Jollof Rice x1');
+        $anotherOrder = $this->makeOrder($store, $customer, null, 'Fried Rice x1');
+
+        $this->assertNotEmpty($order->order_reference);
+        $this->assertNotSame($order->order_reference, $anotherOrder->order_reference);
+
+        $this->actingAs($customer)
+            ->get(route('customer.orders.show', $order))
+            ->assertOk()
+            ->assertSee($order->order_reference)
+            ->assertSee('Jollof Rice x1')
+            ->assertSee('Message store');
+
+        $this->actingAs($otherCustomer)
+            ->get(route('customer.orders.show', $order))
+            ->assertForbidden();
+    }
+
     public function test_rider_delivery_is_confirmed_by_recipient_code_and_declines_return_orders_to_store(): void
     {
         $owner = User::factory()->create();
@@ -710,19 +864,27 @@ class OrderDispatchTest extends TestCase
         $order->update(['recipient_code' => '1234']);
 
         $this->actingAs($riderUser)
-            ->post(route('order.accept', $order))
-            ->assertRedirect(route('rider.assigned-orders'));
-        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'accepted']);
-
+            ->get(route('rider.assigned-orders'))
+            ->assertOk()
+            ->assertSee('Confirm pickup')
+            ->assertSee('Decline assignment');
         $this->post(route('rider.pickup', $order))
             ->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'picked_up']);
         $this->assertNotNull($order->fresh()->picked_up_at);
 
+        $this->post(route('rider.out-for-delivery', $order))
+            ->assertRedirect();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'out_for_delivery']);
+
+        $this->post(route('rider.deliver', $order), ['recipient_code' => '0000'])
+            ->assertRedirect()
+            ->assertSessionHas('error');
         $this->post(route('rider.deliver', $order), ['recipient_code' => '1234'])
             ->assertRedirect();
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
-            'status' => 'completed',
+            'status' => 'delivered',
             'recipient_code' => '1234',
         ]);
         $this->assertNotNull($order->fresh()->recipient_verified_at);
@@ -732,7 +894,7 @@ class OrderDispatchTest extends TestCase
             ->assertRedirect(route('rider.assigned-orders'));
         $this->assertDatabaseHas('orders', [
             'id' => $declinedOrder->id,
-            'status' => 'pending',
+            'status' => 'ready_for_pickup',
             'rider_id' => null,
         ]);
         $this->assertDatabaseHas('notifications', [
@@ -808,7 +970,8 @@ class OrderDispatchTest extends TestCase
             'total_price' => 2500,
             'delivery_fee' => 300,
             'items_description' => $items,
-            'status' => $rider ? 'assigned' : 'pending',
+            'status' => $rider ? 'rider_assigned' : 'ready_for_pickup',
+            'store_approval_status' => 'approved',
             'payment_status' => 'paid',
         ]);
     }

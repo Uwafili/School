@@ -46,6 +46,7 @@ class PaymentController extends Controller
             'delivery_method' => ['required', 'in:location,pickup'],
             'delivery_address' => ['required_if:delivery_method,location', 'nullable', 'string', 'max:1000'],
             'pickup_station' => ['required_if:delivery_method,pickup', 'nullable', 'string', 'max:255'],
+            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^\+?[0-9][0-9\s().-]{6,19}$/'],
         ]);
 
         $cart = $request->session()->get('cart', []);
@@ -117,6 +118,7 @@ class PaymentController extends Controller
             'delivery_method' => $validated['delivery_method'],
             'delivery_address' => $validated['delivery_address'] ?? null,
             'pickup_station' => $validated['pickup_station'] ?? null,
+            'customer_phone' => $validated['customer_phone'],
             'payment_method' => 'paystack',
             'reference' => $reference,
             'cart' => $cart,
@@ -272,7 +274,7 @@ class PaymentController extends Controller
                     'store_id' => $store->id,
                     'customer_id' => Auth::id(),
                     'customer_name' => Auth::user()->name,
-                    'customer_phone' => Auth::user()->phone ?? 'Not provided',
+                    'customer_phone' => $payment['customer_phone'],
                     'customer_address' => $payment['delivery_method'] === 'pickup'
                         ? ($payment['pickup_station'] ?? 'Pickup station')
                         : ($payment['delivery_address'] ?? 'Location not provided'),

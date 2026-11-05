@@ -6,13 +6,14 @@ use Illuminate\Http\Request;
 use App\Models\Store;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Rider;
 use App\Jobs\ProcessPaystackRefund;
 use App\Services\NearbyOrderDispatcher;
 use App\Services\OrderNotificationService;
+use App\Services\OrderWorkflowService;
+use App\Models\Message;
 
 
 
@@ -97,8 +98,7 @@ class StoreController extends Controller
         
         // Get pending orders for this store
         $orders = Order::whereIn('store_id', $stores->pluck('id'))
-            ->where('status', 'pending')
-            ->where('store_approval_status', 'approved')
+            ->where('status', 'ready_for_pickup')
             ->where('payment_status', 'paid')
             ->get();
 
@@ -110,7 +110,7 @@ class StoreController extends Controller
         $pendingApprovalOrders = Order::whereIn('store_id', $stores->pluck('id'))
             ->where('status', 'pending')
             ->where('store_approval_status', 'pending')
-            ->with('customer')
+            ->with(['customer', 'messages' => fn ($query) => $query->where('receiver_id', $id)->whereNull('read_at')])
             ->latest()
             ->get();
         
@@ -139,7 +139,7 @@ class StoreController extends Controller
         
         // Revenue is earned only after delivery is completed.
         $totalRevenue = Order::whereIn('store_id', $storeIds)
-            ->where('status', 'completed')
+            ->where('status', 'delivered')
             ->sum('total_price');
         
         // Week's orders and revenue
@@ -148,7 +148,7 @@ class StoreController extends Controller
             ->count();
         
         $weekRevenue = Order::whereIn('store_id', $storeIds)
-            ->where('status', 'completed')
+            ->where('status', 'delivered')
             ->where('created_at', '>=', now()->subDays(7))
             ->sum('total_price');
         
@@ -162,8 +162,22 @@ class StoreController extends Controller
         $recentOrders = Order::whereIn('store_id', $storeIds)
             ->with(['rider.user', 'customer', 'deliveryBids.rider.user'])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
             ->get();
+        $unreadMessagesByOrder = Message::where('receiver_id', $id)
+            ->whereNull('read_at')
+            ->whereIn('order_id', $recentOrders->pluck('id')->merge($pendingApprovalOrders->pluck('id'))->unique())
+            ->selectRaw('order_id, COUNT(*) as unread_count')
+            ->groupBy('order_id')
+            ->pluck('unread_count', 'order_id');
+        $pendingApprovalOrders->each(fn (Order $order) => $order->setAttribute(
+            'unread_message_count',
+            (int) ($unreadMessagesByOrder[$order->id] ?? 0)
+        ));
+        $recentOrders->each(fn (Order $order) => $order->setAttribute(
+            'unread_message_count',
+            (int) ($unreadMessagesByOrder[$order->id] ?? 0)
+        ));
+        $unreadMessageCount = $unreadMessagesByOrder->sum();
         
         // Rider responses (orders with riders and their status)
         $riderResponses = Order::whereIn('store_id', $storeIds)
@@ -181,6 +195,7 @@ class StoreController extends Controller
             'stores' => $stores,
             'orders' => $orders,
             'pendingApprovalOrders' => $pendingApprovalOrders,
+            'unreadMessageCount' => $unreadMessageCount,
             'storeNotifications' => $storeNotifications,
             'riders' => $onlineRiders,
             'nearbyRiders' => $nearbyRiders,
@@ -291,7 +306,7 @@ class StoreController extends Controller
             'delivery_fee' => $validated['delivery_fee'],
             'items_description' => $validated['items_description'],
             'status' => 'pending',
-            'store_approval_status' => 'approved',
+            'store_approval_status' => 'pending',
         ]);
 
         Notification::create([
@@ -305,72 +320,60 @@ class StoreController extends Controller
         return redirect()->route('storedashboard')->with('success', 'Order created successfully!');
     }
 
-    public function approveOrder(Order $order, OrderNotificationService $notifications, NearbyOrderDispatcher $dispatcher)
+    public function approveOrder(Order $order, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $store = Store::where('user_id', Auth::id())->findOrFail($order->store_id);
-
-        $approvedOrder = DB::transaction(function () use ($order, $store) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            abort_unless($lockedOrder->store_id === $store->id, 403);
-
-            if ($lockedOrder->status !== 'pending' || $lockedOrder->store_approval_status !== 'pending') {
-                return null;
-            }
-
-            $lockedOrder->update([
-                'store_approval_status' => 'approved',
-                'store_approved_at' => now(),
-            ]);
-
-            return $lockedOrder->fresh(['store']);
-        });
-
-        if (! $approvedOrder) {
-            return back()->with('error', 'This order is no longer waiting for approval.');
-        }
+        abort_unless($order->store_approval_status === 'pending', 422, 'This order is no longer waiting for approval.');
+        $approvedOrder = $workflow->transition($order, 'approved', [
+            'store_approval_status' => 'approved',
+            'store_approved_at' => now(),
+        ]);
 
         $notifications->sendToCustomer(
             $approvedOrder,
             'Store approved your order',
-            "The store approved order #{$approvedOrder->id} and it is now available for delivery assignment.",
+            "The store approved order {$approvedOrder->order_reference}. It will be prepared before rider assignment.",
             'order_approved'
         );
-        $dispatcher->dispatch($approvedOrder);
 
         return back()->with('success', "Order #{$approvedOrder->id} approved.");
     }
 
-    public function rejectOrder(Request $request, Order $order, OrderNotificationService $notifications)
+    public function startPreparing(Order $order, OrderNotificationService $notifications, OrderWorkflowService $workflow)
+    {
+        Store::where('user_id', Auth::id())->findOrFail($order->store_id);
+        $order = $workflow->transition($order, 'preparing');
+        $notifications->sendToCustomer($order, 'Order is being prepared', "The store started preparing order {$order->order_reference}.", 'order_preparing');
+
+        return back()->with('success', 'Order marked as preparing.');
+    }
+
+    public function markReadyForPickup(Order $order, OrderNotificationService $notifications, OrderWorkflowService $workflow, NearbyOrderDispatcher $dispatcher)
+    {
+        Store::where('user_id', Auth::id())->findOrFail($order->store_id);
+        $order = $workflow->transition($order, 'ready_for_pickup');
+        $notifications->sendToCustomer($order, 'Order ready for pickup', "Order {$order->order_reference} is ready for pickup and rider assignment.", 'order_ready');
+        $dispatcher->dispatch($order);
+
+        return back()->with('success', 'Order marked ready for pickup.');
+    }
+
+    public function rejectOrder(Request $request, Order $order, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
         $store = Store::where('user_id', Auth::id())->findOrFail($order->store_id);
 
-        $rejectedOrder = DB::transaction(function () use ($order, $store, $validated) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            abort_unless($lockedOrder->store_id === $store->id, 403);
-
-            if ($lockedOrder->status !== 'pending' || $lockedOrder->store_approval_status !== 'pending') {
-                return null;
-            }
-
-            $isPaid = $lockedOrder->payment_status === 'paid';
-            $lockedOrder->update([
-                'status' => 'rejected',
-                'store_approval_status' => 'rejected',
-                'store_rejected_at' => now(),
-                'store_rejection_reason' => $validated['reason'] ?? null,
-                'refund_status' => $isPaid ? 'pending' : 'none',
-                'payment_status' => $isPaid ? 'refund_pending' : $lockedOrder->payment_status,
-            ]);
-
-            return $lockedOrder->fresh();
-        });
-
-        if (! $rejectedOrder) {
-            return back()->with('error', 'This order is no longer waiting for approval.');
-        }
+        abort_unless($order->store_approval_status === 'pending', 422, 'This order is no longer waiting for approval.');
+        $isPaid = $order->payment_status === 'paid';
+        $rejectedOrder = $workflow->transition($order, 'rejected', [
+            'store_approval_status' => 'rejected',
+            'store_rejected_at' => now(),
+            'store_rejection_reason' => $validated['reason'] ?? null,
+            'refund_status' => $isPaid ? 'pending' : 'none',
+            'payment_status' => $isPaid ? 'refund_pending' : $order->payment_status,
+        ]);
 
         $reason = $validated['reason'] ?? null;
         $notifications->sendToCustomer(
@@ -436,82 +439,65 @@ class StoreController extends Controller
 
         $deliveryFee = $validated['delivery_fee'] ?? $order->delivery_fee;
 
-        DB::transaction(function () use ($order, $store, $rider, $deliveryFee, $notifications) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $lockedRider = Rider::query()->lockForUpdate()->findOrFail($rider->id);
-            abort_unless(
-                $lockedOrder->store_id === $store->id
-                    && $lockedOrder->status === 'pending'
-                    && $lockedOrder->store_approval_status === 'approved'
-                    && $lockedOrder->payment_status === 'paid'
-                    && ! $lockedOrder->rider_id
-                    && $lockedRider->status === 'approved'
-                    && $lockedRider->is_online,
-                422,
-                'This order is not ready for rider assignment.'
-            );
-
-            $lockedOrder->update([
+        $order = app(OrderWorkflowService::class)->transition(
+            $order,
+            'rider_assigned',
+            [
                 'rider_id' => $rider->id,
-                'status' => 'assigned',
                 'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
                 'delivery_fee' => $deliveryFee,
-            ]);
-            $notifications->sendToRider(
-                $lockedOrder,
-                'New order assigned',
-                "You have been assigned order #{$lockedOrder->id} from {$store->stores}. Customer: {$lockedOrder->customer_name}, Address: {$lockedOrder->customer_address}, Delivery pay: ₦{$deliveryFee}",
-                'order_assigned'
-            );
-            $notifications->sendToCustomer(
-                $lockedOrder,
-                'Rider assigned',
-                "A rider has been assigned to your order #{$lockedOrder->id}.",
-                'rider_assigned'
-            );
-        });
+            ],
+            function (Order $lockedOrder) use ($store, $rider): bool {
+                $lockedRider = Rider::query()->lockForUpdate()->find($rider->id);
+
+                return $lockedOrder->store_id === $store->id
+                    && $lockedOrder->payment_status === 'paid'
+                    && ! $lockedOrder->rider_id
+                    && $lockedRider?->status === 'approved'
+                    && $lockedRider->is_online;
+            }
+        );
+        $notifications->sendToRider($order, 'New order assigned', "You have been assigned order {$order->order_reference} from {$store->stores}. Delivery pay: ₦{$deliveryFee}", 'order_assigned');
+        $notifications->sendToCustomer($order, 'Rider assigned', "A rider has been assigned to order {$order->order_reference}.", 'rider_assigned');
 
         return redirect()->route('storedashboard')->with('success', 'Order assigned to rider successfully! Rider notified.');
     }
 
-    public function acceptBid(Request $request, $bidId)
+    public function acceptBid($bidId)
     {
         $bid = \App\Models\DeliveryBid::with(['order', 'rider'])->findOrFail($bidId);
         $order = $bid->order;
         $store = Store::where('user_id', Auth::id())->findOrFail($order->store_id);
 
-        if ($bid->status !== 'pending' || $order->status !== 'pending' || $order->rider_id
-            || $order->store_approval_status !== 'approved' || $order->payment_status !== 'paid') {
+        if ($bid->status !== 'pending' || $order->status !== 'ready_for_pickup' || $order->rider_id
+            || $order->payment_status !== 'paid') {
             return redirect()->back()->with('error', 'This bid is no longer available.');
         }
 
-        DB::transaction(function () use ($bid, $order) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $lockedBid = \App\Models\DeliveryBid::query()->lockForUpdate()->findOrFail($bid->id);
-            $rider = Rider::query()->lockForUpdate()->findOrFail($lockedBid->rider_id);
-            abort_unless(
-                $lockedOrder->store_approval_status === 'approved'
-                    && $lockedOrder->payment_status === 'paid'
-                    && $lockedOrder->status === 'pending'
-                    && ! $lockedOrder->rider_id
-                    && $lockedBid->status === 'pending'
-                    && $rider->status === 'approved'
-                    && $rider->is_online,
-                422,
-                'This bid is no longer available.'
-            );
-
-            $lockedOrder->update([
-                'rider_id' => $lockedBid->rider_id,
-                'delivery_fee' => $lockedBid->amount,
-                'status' => 'assigned',
+        $order = app(OrderWorkflowService::class)->transition(
+            $order,
+            'rider_assigned',
+            [
+                'rider_id' => $bid->rider_id,
+                'delivery_fee' => $bid->amount,
                 'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
-            ]);
-            $lockedBid->update(['status' => 'accepted']);
-            $lockedOrder->deliveryBids()->whereKeyNot($lockedBid->id)->where('status', 'pending')->update(['status' => 'rejected']);
-        });
+            ],
+            function (Order $lockedOrder) use ($bid, $store): bool {
+                $lockedBid = \App\Models\DeliveryBid::query()->lockForUpdate()->find($bid->id);
+                $rider = $lockedBid ? Rider::query()->lockForUpdate()->find($lockedBid->rider_id) : null;
+                if ($lockedOrder->store_id !== $store->id
+                    || ! $lockedBid || $lockedBid->status !== 'pending' || ! $rider
+                    || $rider->status !== 'approved' || ! $rider->is_online
+                    || $lockedOrder->payment_status !== 'paid' || $lockedOrder->rider_id) {
+                    return false;
+                }
 
-        $order->refresh();
+                $lockedBid->update(['status' => 'accepted']);
+                $lockedOrder->deliveryBids()->whereKeyNot($lockedBid->id)->where('status', 'pending')->update(['status' => 'rejected']);
+
+                return true;
+            }
+        );
         $notifications = app(OrderNotificationService::class);
         $notifications->sendToRider($order, 'Delivery bid accepted', "Your bid for order #{$order->id} was accepted. Delivery pay: ₦{$bid->amount}", 'order_assigned');
         $notifications->sendToCustomer($order, 'Rider assigned', "A rider has been assigned to your order #{$order->id}.", 'rider_assigned');
@@ -536,29 +522,13 @@ class StoreController extends Controller
     }
 
     /**
-     * Complete an order
-     */
-    public function completeOrder($orderId)
-    {
-        $order = \App\Models\Order::findOrFail($orderId);
-        
-        // Verify the order belongs to the authenticated store
-        $store = Store::where('user_id', Auth::id())->whereKey($order->store_id)->exists();
-        if (!$store) {
-            return redirect()->back()->with('error', 'Unauthorized');
-        }
-
-        return redirect()->route('storedashboard')->with('error', 'Only the assigned rider can complete a delivery.');
-    }
-
-    /**
      * Cancel an order
      */
-    public function cancelOrder(Request $request, $orderId, OrderNotificationService $notifications)
+    public function cancelOrder(Request $request, $orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $order = Order::findOrFail($orderId);
         $request->merge(['reason' => $request->input('reason', 'Store declined the order.')]);
 
-        return $this->rejectOrder($request, $order, $notifications);
+        return $this->rejectOrder($request, $order, $notifications, $workflow);
     }
 }

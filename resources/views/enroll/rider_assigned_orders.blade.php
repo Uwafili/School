@@ -30,14 +30,14 @@
         <!-- Order Status Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div class="bg-white rounded-lg shadow p-6 flex flex-col">
-                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">📋 Pending (Assigned)</span>
-                <span class="text-4xl font-bold text-yellow-600">{{ $orders->where('status', 'assigned')->count() }}</span>
-                <p class="text-gray-600 text-sm mt-2">Awaiting your decision</p>
+                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">📋 Assigned</span>
+                <span class="text-4xl font-bold text-yellow-600">{{ $orders->where('status', 'rider_assigned')->count() }}</span>
+                <p class="text-gray-600 text-sm mt-2">Awaiting pickup</p>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col">
-                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">✅ Accepted</span>
-                <span class="text-4xl font-bold text-green-600">{{ $orders->where('status', 'accepted')->count() }}</span>
-                <p class="text-gray-600 text-sm mt-2">Ready for delivery</p>
+                <span class="text-sm font-semibold text-gray-600 uppercase mb-2">✅ In progress</span>
+                <span class="text-4xl font-bold text-green-600">{{ $orders->whereIn('status', ['picked_up', 'out_for_delivery'])->count() }}</span>
+                <p class="text-gray-600 text-sm mt-2">Picked up or on the way</p>
             </div>
             <div class="bg-white rounded-lg shadow p-6 flex flex-col">
                 <span class="text-sm font-semibold text-gray-600 uppercase mb-2">❌ Rejected</span>
@@ -67,15 +67,15 @@
             </section>
         @endif
 
-        <!-- Assigned Orders (Pending Action) -->
-        @if ($orders->where('status', 'assigned')->count() > 0)
+        <!-- Assigned Orders -->
+        @if ($orders->where('status', 'rider_assigned')->count() > 0)
             <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                    <span class="text-3xl">🎯</span> Orders Awaiting Your Decision
+                    <span class="text-3xl">🎯</span> Orders Assigned to You
                 </h2>
 
                 <div class="space-y-6">
-                    @foreach ($orders->where('status', 'assigned') as $order)
+                    @foreach ($orders->where('status', 'rider_assigned') as $order)
                         <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-6 hover:shadow-lg transition">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                                 <!-- Order Details -->
@@ -120,15 +120,15 @@
 
                             <!-- Action Buttons -->
                             <div class="flex gap-4 mt-6 border-t border-yellow-200 pt-6">
-                                <form method="POST" action="{{ route('order.accept', $order->id) }}" class="flex-1">
+                                <form method="POST" action="{{ route('rider.pickup', $order->id) }}" class="flex-1">
                                     @csrf
                                     <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                        ✅ Accept Order
+                                        Confirm pickup
                                     </button>
                                 </form>
 
                                 <button type="button" onclick="openRejectModal({{ $order->id }})" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                    ❌ Reject Order
+                                    Decline assignment
                                 </button>
                             </div>
 
@@ -141,15 +141,15 @@
             </div>
         @endif
 
-        <!-- Accepted Orders -->
-        @if ($orders->where('status', 'accepted')->count() > 0)
+        <!-- Active Orders -->
+        @if ($orders->whereIn('status', ['picked_up', 'out_for_delivery'])->count() > 0)
             <div class="bg-white rounded-xl shadow-lg p-8 mb-10">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                    <span class="text-3xl">✅</span> Accepted Orders (Ready for Delivery)
+                    <span class="text-3xl">✅</span> Active Deliveries
                 </h2>
 
                 <div class="space-y-4">
-                    @foreach ($orders->where('status', 'accepted') as $order)
+                    @foreach ($orders->whereIn('status', ['picked_up', 'out_for_delivery']) as $order)
                         <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
                             <div class="flex justify-between items-start">
                                 <div>
@@ -157,10 +157,13 @@
                                     <p class="text-gray-600">{{ $order->customer_address }}</p>
                                     <p class="text-green-700 font-bold mt-2">₦{{ number_format($order->total_price, 2) }}</p>
                                 </div>
-                                <span class="bg-green-200 text-green-800 font-bold px-4 py-2 rounded-lg">
-                                    Ready to Go
-                                </span>
+                                <span class="bg-green-200 text-green-800 font-bold px-4 py-2 rounded-lg">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
                             </div>
+                            @if ($order->status === 'picked_up')
+                                <form method="POST" action="{{ route('rider.out-for-delivery', $order->id) }}" class="mt-4">@csrf<button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700">Start delivery</button></form>
+                            @else
+                                <form method="POST" action="{{ route('rider.deliver', $order->id) }}" class="mt-4 flex gap-2">@csrf<input name="recipient_code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required placeholder="4-digit customer code" class="min-w-0 flex-1 rounded-lg border-gray-200 px-3 py-2"><button type="submit" class="rounded-lg bg-gray-900 px-4 py-2 font-bold text-white hover:bg-green-700">Confirm delivery</button></form>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -206,8 +209,8 @@
 <!-- Reject Modal -->
 <div id="rejectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">❌ Reject Order</h3>
-        <p class="text-gray-600 mb-4">Are you sure you want to reject this order? Please provide a reason.</p>
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Decline Delivery Assignment</h3>
+        <p class="text-gray-600 mb-4">Please provide a reason for returning this delivery to the store.</p>
 
         <form id="rejectForm" method="POST" class="space-y-4">
             @csrf
@@ -223,7 +226,7 @@
                     Cancel
                 </button>
                 <button type="submit" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-2 rounded-lg transition">
-                    Reject Order
+                    Decline Assignment
                 </button>
             </div>
         </form>

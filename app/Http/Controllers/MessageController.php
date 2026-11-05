@@ -37,6 +37,43 @@ class MessageController extends Controller
         return view('chat', compact('messages', 'order', 'contact'));
     }
 
+    public function messages(Request $request, Order $order, int $user)
+    {
+        $this->authorizeParticipant($order, $user);
+        $validated = $request->validate([
+            'after' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $messages = Message::where('order_id', $order->id)
+            ->where('id', '>', $validated['after'] ?? 0)
+            ->where(function ($query) use ($user) {
+                $query->where(function ($conversation) use ($user) {
+                    $conversation->where('sender_id', Auth::id())->where('receiver_id', $user);
+                })->orWhere(function ($conversation) use ($user) {
+                    $conversation->where('sender_id', $user)->where('receiver_id', Auth::id());
+                });
+            })
+            ->with('sender')
+            ->oldest()
+            ->get();
+
+        if ($messages->isNotEmpty()) {
+            Message::whereIn('id', $messages->where('receiver_id', Auth::id())->pluck('id'))
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
+
+        return response()->json([
+            'messages' => $messages->map(fn (Message $message) => [
+                'id' => $message->id,
+                'sender_id' => $message->sender_id,
+                'sender_name' => $message->sender?->name ?? 'User',
+                'message' => $message->message,
+                'created_at' => $message->created_at->toIso8601String(),
+            ])->values(),
+        ]);
+    }
+
     public function send(Request $request, Order $order, OrderNotificationService $notifications)
     {
         $validated = $request->validate([

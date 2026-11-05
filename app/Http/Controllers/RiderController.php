@@ -10,6 +10,7 @@ use App\Models\DeliveryBid;
 use App\Models\Order;
 use App\Models\Notification;
 use App\Services\OrderNotificationService;
+use App\Services\OrderWorkflowService;
 use Illuminate\Support\Facades\DB;
 
 class RiderController extends Controller
@@ -94,9 +95,9 @@ class RiderController extends Controller
 
         $orders = $this->assignedOrdersForRider($Rider);
         $nearbyOrders = $this->nearbyOrdersForRider($Rider);
-        $assignedCount = $orders->where('status', 'assigned')->count() + $nearbyOrders->count();
-        $activeCount = $orders->whereIn('status', ['accepted'])->count();
-        $completedCount = $orders->where('status', 'completed')->count();
+        $assignedCount = $orders->where('status', 'rider_assigned')->count() + $nearbyOrders->count();
+        $activeCount = $orders->whereIn('status', ['picked_up', 'out_for_delivery'])->count();
+        $completedCount = $orders->where('status', 'delivered')->count();
 
         return view('enroll.ridersdashboard', compact('Rider', 'orders', 'nearbyOrders', 'assignedCount', 'activeCount', 'completedCount'));
     }
@@ -122,7 +123,7 @@ class RiderController extends Controller
         $longitudeRange = $radius / max(111.045 * abs(cos(deg2rad($latitude))), 0.01);
 
         return Order::whereNull('rider_id')
-            ->where('status', 'pending')
+            ->where('status', 'ready_for_pickup')
             ->where('payment_status', 'paid')
             ->where('store_approval_status', 'approved')
             ->whereHas('store', function ($query) use ($latitude, $longitude, $latitudeRange, $longitudeRange) {
@@ -175,7 +176,7 @@ class RiderController extends Controller
             $lockedRider = Rider::query()->lockForUpdate()->findOrFail($rider->id);
             abort_unless(
                 ! $lockedOrder->rider_id
-                    && $lockedOrder->status === 'pending'
+                    && $lockedOrder->status === 'ready_for_pickup'
                     && $lockedOrder->payment_status === 'paid'
                     && $lockedOrder->store_approval_status === 'approved'
                     && $lockedRider->status === 'approved'
@@ -207,59 +208,64 @@ class RiderController extends Controller
         return back()->with('success', $rider->is_online ? 'You are now online and can receive jobs.' : 'You are now offline.');
     }
 
-    public function confirmPickup($orderId, OrderNotificationService $notifications)
+    public function confirmPickup($orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
         $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
 
-        if ($order->status !== 'accepted' || $order->picked_up_at) {
-            return back()->with('error', 'Accept the order before confirming pickup.');
-        }
-        DB::transaction(function () use ($order, $rider) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            abort_unless($lockedOrder->rider_id === $rider->id && $lockedOrder->status === 'accepted' && ! $lockedOrder->picked_up_at, 422);
-            $lockedOrder->update([
-                'picked_up_at' => now(),
-                'notes' => trim(($lockedOrder->notes ? $lockedOrder->notes . "\n" : '') . 'Picked up by rider at ' . now()->toDateTimeString()),
-            ]);
-        });
+        $order = $workflow->transition($order, 'picked_up', [
+            'picked_up_at' => now(),
+        ], fn (Order $lockedOrder): bool =>
+            $lockedOrder->rider_id === $rider->id
+                && $lockedOrder->picked_up_at === null
+                && $lockedOrder->store_approval_status === 'approved'
+                && $lockedOrder->payment_status === 'paid'
+        );
 
-        $order->refresh();
         $notifications->sendToCustomer($order, 'Order picked up', "The rider picked up order #{$order->id}.", 'order_picked_up');
         $notifications->sendToStore($order, 'Order picked up', "The rider picked up order #{$order->id}.", 'order_picked_up');
 
         return back()->with('success', 'Pickup confirmed. Take the order to the customer.');
     }
 
-    public function confirmDelivery(Request $request, $orderId, OrderNotificationService $notifications)
+    public function markOutForDelivery($orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
+    {
+        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
+        $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
+
+        $order = $workflow->transition($order, 'out_for_delivery', [], fn (Order $lockedOrder): bool =>
+            $lockedOrder->rider_id === $rider->id && $lockedOrder->picked_up_at !== null
+        );
+
+        $notifications->sendToCustomer($order, 'Order is out for delivery', "Order #{$order->id} is on its way.", 'order_out_for_delivery');
+        $notifications->sendToStore($order, 'Order is out for delivery', "Order #{$order->id} is on its way to the customer.", 'order_out_for_delivery');
+
+        return back()->with('success', 'Order marked out for delivery.');
+    }
+
+    public function confirmDelivery(Request $request, $orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->firstOrFail();
         $order = Order::where('id', $orderId)->where('rider_id', $rider->id)->firstOrFail();
         $request->validate(['recipient_code' => ['required', 'digits:4']]);
 
-        if ($order->status !== 'accepted') {
+        if ($order->status !== 'out_for_delivery') {
             return back()->with('error', 'This order is not ready for delivery confirmation.');
         }
         if (!$order->recipient_code || !hash_equals((string) $order->recipient_code, (string) $request->recipient_code)) {
             return back()->with('error', 'The recipient code is incorrect. Ask the customer to show the code from their order.');
         }
 
-        DB::transaction(function () use ($order, $rider, $request) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            abort_unless(
-                $lockedOrder->rider_id === $rider->id
-                    && $lockedOrder->status === 'accepted'
-                    && $lockedOrder->picked_up_at
-                    && $lockedOrder->recipient_code
-                    && hash_equals((string) $lockedOrder->recipient_code, (string) $request->input('recipient_code')),
-                422,
-                'This order is not ready for delivery confirmation.'
-            );
-            $lockedOrder->update(['status' => 'completed', 'recipient_verified_at' => now()]);
-        });
-        $order->refresh();
-        $notifications->sendToCustomer($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_completed');
-        $notifications->sendToStore($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_completed');
+        $order = $workflow->transition($order, 'delivered', [
+            'recipient_verified_at' => now(),
+        ], fn (Order $lockedOrder): bool =>
+            $lockedOrder->rider_id === $rider->id
+                && $lockedOrder->picked_up_at !== null
+                && $lockedOrder->recipient_code !== null
+                && hash_equals((string) $lockedOrder->recipient_code, (string) $request->input('recipient_code'))
+        );
+        $notifications->sendToCustomer($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_delivered');
+        $notifications->sendToStore($order, 'Order delivered', "Order #{$order->id} was delivered successfully.", 'order_delivered');
 
         return back()->with('success', 'Delivery confirmed. Recipient verified successfully.');
     }
@@ -369,50 +375,9 @@ class RiderController extends Controller
     }
 
     /**
-     * Accept an assigned order
-     */
-    public function acceptOrder($orderId, OrderNotificationService $notifications)
-    {
-        $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->first();
-        
-        if (!$rider) {
-            return redirect()->route('rider.create')->with('error', 'Please complete your rider registration first.');
-        }
-
-        $order = Order::where('rider_id', $rider->id)
-            ->where('status', 'assigned')
-            ->findOrFail($orderId);
-
-        if (!$rider->is_online) {
-            return redirect()->back()->with('error', 'Go online before accepting delivery jobs.');
-        }
-
-        DB::transaction(function () use ($order, $rider) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            $lockedRider = Rider::query()->lockForUpdate()->findOrFail($rider->id);
-            abort_unless(
-                $lockedOrder->rider_id === $rider->id
-                    && $lockedOrder->status === 'assigned'
-                    && $lockedOrder->store_approval_status === 'approved'
-                    && $lockedOrder->payment_status === 'paid'
-                    && $lockedRider->status === 'approved'
-                    && $lockedRider->is_online,
-                422,
-                'This delivery is no longer available.'
-            );
-            $lockedOrder->update(['status' => 'accepted']);
-        });
-        $order->refresh();
-        $notifications->sendToCustomer($order, 'Rider accepted your order', "The rider accepted order #{$order->id}.", 'order_accepted');
-        $notifications->sendToStore($order, 'Rider accepted the delivery', "The rider accepted order #{$order->id}.", 'order_accepted');
-
-        return redirect()->route('rider.assigned-orders')->with('success', '✅ Order accepted! You can now proceed with delivery.');
-    }
-
-    /**
      * Reject an assigned order
      */
-    public function rejectOrder(Request $request, $orderId, OrderNotificationService $notifications)
+    public function rejectOrder(Request $request, $orderId, OrderNotificationService $notifications, OrderWorkflowService $workflow)
     {
         $rider = Rider::where('user_id', Auth::id())->where('status', 'approved')->first();
         
@@ -428,23 +393,26 @@ class RiderController extends Controller
             return redirect()->back()->with('error', 'This order is not assigned to you.');
         }
 
-        // Only reject orders that are in "assigned" status
-        if ($order->status !== 'assigned') {
-            return redirect()->back()->with('error', 'You can only reject orders that are in assigned status.');
+        if ($order->status !== 'rider_assigned') {
+            return redirect()->back()->with('error', 'You can only decline a delivery before pickup.');
         }
 
-        DB::transaction(function () use ($order, $rider) {
-            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
-            abort_unless($lockedOrder->rider_id === $rider->id && $lockedOrder->status === 'assigned', 422, 'This delivery is no longer available.');
-            $lockedOrder->update([
-                'status' => 'pending',
+        $reason = $validated['reason'] ?? 'No reason provided.';
+        $order = $workflow->transition($order, 'ready_for_pickup', [
                 'rider_id' => null,
                 'recipient_code' => null,
-            ]);
-            $lockedOrder->deliveryBids()->where('status', 'accepted')->update(['status' => 'rejected']);
-        });
-        $order->refresh();
-        $reason = $validated['reason'] ?? 'No reason provided.';
+            ], function (Order $lockedOrder) use ($rider): bool {
+                if ($lockedOrder->rider_id !== $rider->id) {
+                    return false;
+                }
+
+                $lockedOrder->deliveryBids()
+                    ->where('rider_id', $rider->id)
+                    ->where('status', 'accepted')
+                    ->update(['status' => 'rejected']);
+
+                return true;
+            });
         $notifications->sendToStore(
             $order,
             'Rider declined the delivery',

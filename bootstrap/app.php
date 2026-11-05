@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if (!$isDatabaseFailure && (
                 $exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
                 || $exception instanceof \Illuminate\Auth\AuthenticationException
+                || $exception instanceof \Illuminate\Validation\ValidationException
             )) {
                 return null;
             }

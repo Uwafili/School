@@ -13,8 +13,7 @@ class NearbyOrderDispatcher
     {
         if (config('broadcasting.default') !== 'pusher'
             || ! config('broadcasting.connections.pusher.key')
-            || $order->status !== 'pending'
-            || $order->store_approval_status !== 'approved'
+            || $order->status !== 'ready_for_pickup'
             || $order->payment_status !== 'paid'
             || $order->rider_id) {
             return;

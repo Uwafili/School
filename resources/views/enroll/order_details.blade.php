@@ -27,19 +27,7 @@
                     <h2 class="text-4xl font-bold text-yellow-600">#{{ $order->id }}</h2>
                 </div>
                 <div class="text-right">
-                    @if ($order->status === 'pending')
-                        <span class="inline-block bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-lg font-bold">⏳ Pending</span>
-                    @elseif ($order->status === 'assigned')
-                        <span class="inline-block bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg text-lg font-bold">📍 Assigned</span>
-                    @elseif ($order->status === 'accepted')
-                        <span class="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-lg font-bold">🚚 In Transit</span>
-                    @elseif ($order->status === 'completed')
-                        <span class="inline-block bg-green-100 text-green-700 px-4 py-2 rounded-lg text-lg font-bold">✓ Delivered</span>
-                    @elseif ($order->status === 'rejected')
-                        <span class="inline-block bg-red-100 text-red-700 px-4 py-2 rounded-lg text-lg font-bold">❌ Rejected</span>
-                    @elseif ($order->status === 'cancelled')
-                        <span class="inline-block bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-lg font-bold">⊘ Cancelled</span>
-                    @endif
+                    <span class="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-lg font-bold">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
                 </div>
             </div>
             <p class="text-gray-600">Ordered: {{ $order->created_at->format('M d, Y H:i') }}</p>
@@ -111,15 +99,7 @@
                     <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
                         <p class="text-xs font-bold text-gray-600 uppercase mb-1">Status</p>
                         <p class="text-xl font-bold text-gray-800">
-                            @if ($order->status === 'accepted')
-                                🚚 In Transit
-                            @elseif ($order->status === 'assigned')
-                                ⏳ Awaiting Response
-                            @elseif ($order->status === 'completed')
-                                ✅ Delivered
-                            @else
-                                {{ ucfirst($order->status) }}
-                            @endif
+                            {{ ucfirst(str_replace('_', ' ', $order->status)) }}
                         </p>
                     </div>
                 </div>
@@ -163,6 +143,10 @@
                         <input name="reason" maxlength="500" placeholder="Reason (optional)" class="rounded-lg border border-gray-300 px-3 py-2">
                         <button type="submit" class="rounded-lg bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700" onclick="return confirm('Reject this order and start a Paystack refund?')">Reject order</button>
                     </form>
+                @elseif ($order->status === 'approved')
+                    <form method="POST" action="{{ route('store.orders.preparing', $order) }}">@csrf<button type="submit" class="rounded-lg bg-orange-600 px-5 py-3 font-bold text-white hover:bg-orange-700">Start preparation</button></form>
+                @elseif ($order->status === 'preparing')
+                    <form method="POST" action="{{ route('store.orders.ready', $order) }}">@csrf<button type="submit" class="rounded-lg bg-green-600 px-5 py-3 font-bold text-white hover:bg-green-700">Mark ready for pickup</button></form>
                 @elseif (in_array($order->status, ['rejected', 'cancelled']) && $order->refund_status === 'pending' && $order->payment_reference && !$order->refund_reference)
                     <form method="POST" action="{{ route('store.orders.refund.retry', $order) }}">
                         @csrf

@@ -44,7 +44,7 @@
                                 </div>
                                 <div class="flex flex-wrap gap-2">
                                     @if ($order->customer_id)
-                                        <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">Message customer</a>
+                                        <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">Message customer @if($order->unread_message_count)<span class="ml-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] text-white">{{ $order->unread_message_count }} new</span>@endif</a>
                                     @endif
                                     <form method="POST" action="{{ route('store.orders.approve', $order) }}">
                                         @csrf
@@ -227,13 +227,13 @@
                             <select name="order_id"
                                 class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
                                 required>
-                                <option disabled selected class="text-gray-500">📦 Select a Pending Order</option>
+                                <option disabled selected class="text-gray-500">📦 Select an order ready for pickup</option>
                                 @forelse ($orders as $order)
                                     <option value="{{ $order->id }}">
                                         #{{ $order->id }} - {{ $order->customer_name }} ({{ $order->customer_address }}) - ₦{{ $order->total_price }}
                                     </option>
                                 @empty
-                                    <option disabled>No pending orders available</option>
+                                    <option disabled>No orders ready for pickup</option>
                                 @endforelse
                             </select>
 
@@ -261,7 +261,7 @@
                 <div class="mb-8 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">🚴 Delivery bids</h2>
                     <div class="space-y-4">
-                        @forelse ($recentOrders->where('status', 'pending')->where('store_approval_status', 'approved')->where('payment_status', 'paid') as $order)
+                        @forelse ($recentOrders->where('status', 'ready_for_pickup')->where('payment_status', 'paid') as $order)
                             <div class="rounded-xl border border-orange-200 bg-orange-50 p-5">
                                 <div class="flex flex-wrap items-center justify-between gap-3">
                                     <div>
@@ -320,17 +320,7 @@
                                         @endif
                                     </td>
                                     <td class="py-4 px-5">
-                                        @if ($order->status === 'pending')
-                                            <span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">{{ $order->store_approval_status === 'pending' ? '⌛ Awaiting approval' : '⏳ Pending rider' }}</span>
-                                        @elseif ($order->status === 'assigned')
-                                            <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">📍 Assigned</span>
-                                        @elseif ($order->status === 'accepted')
-                                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">🚚 In Transit</span>
-                                        @elseif ($order->status === 'completed')
-                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">✓ Delivered</span>
-                                        @elseif ($order->status === 'rejected')
-                                            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">❌ Rejected</span>
-                                        @endif
+                                        <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
                                     </td>
                                     <td class="py-4 px-5 text-gray-600">{{ $order->created_at->format('Y-m-d') }}</td>
                                     <td class="py-4 px-5">
@@ -339,9 +329,15 @@
                                                 👁️ View
                                             </a>
                                             @if ($order->customer_id)
-                                                <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition">Message</a>
+                                                <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition">Message @if($order->unread_message_count)<span class="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">{{ $order->unread_message_count }}</span>@endif</a>
                                             @endif
-                                            @if ($order->status === 'pending' && $order->store_approval_status === 'approved' && $order->payment_status === 'paid')
+                                            @if ($order->status === 'approved')
+                                                <form method="POST" action="{{ route('store.orders.preparing', $order) }}">@csrf<button type="submit" class="rounded bg-orange-50 px-2 py-1 text-sm font-semibold text-orange-700 hover:bg-orange-100">Start preparation</button></form>
+                                            @endif
+                                            @if ($order->status === 'preparing')
+                                                <form method="POST" action="{{ route('store.orders.ready', $order) }}">@csrf<button type="submit" class="rounded bg-green-50 px-2 py-1 text-sm font-semibold text-green-700 hover:bg-green-100">Mark ready</button></form>
+                                            @endif
+                                            @if ($order->status === 'ready_for_pickup' && $order->payment_status === 'paid')
                                                 <button onclick="openAssignModal({{ $order->id }})" class="text-yellow-600 hover:text-yellow-800 font-semibold text-sm px-2 py-1 bg-yellow-50 rounded hover:bg-yellow-100 transition">
                                                     🎯 Assign
                                                 </button>
@@ -381,15 +377,15 @@
                     <!-- Accepted Orders -->
                     <div class="border-l-4 border-green-500 bg-green-50 p-6 rounded-lg">
                         <h3 class="font-bold text-green-700 mb-4 flex items-center gap-2">
-                            <span>✅</span> Accepted Orders ({{ $riderResponses->where('status', 'accepted')->count() }})
+                            <span>✅</span> Active deliveries ({{ $riderResponses->whereIn('status', ['picked_up', 'out_for_delivery'])->count() }})
                         </h3>
                         <div class="space-y-3">
-                            @forelse ($riderResponses->where('status', 'accepted') as $order)
+                            @forelse ($riderResponses->whereIn('status', ['picked_up', 'out_for_delivery']) as $order)
                                 <div class="bg-white p-3 rounded border-l-2 border-green-400">
                                     <p class="font-semibold text-gray-800">#{{ $order->id }} - {{ $order->customer_name }}</p>
                                     <p class="text-sm text-gray-600">
                                         @if ($order->rider)
-                                            👤 {{ $order->rider->user->name }} accepted · In Transit
+                                            👤 {{ $order->rider->user->name }} · {{ ucfirst(str_replace('_', ' ', $order->status)) }}
                                         @else
                                             Not assigned
                                         @endif
@@ -404,15 +400,15 @@
                     <!-- Pending/Assigned Orders -->
                     <div class="border-l-4 border-orange-500 bg-orange-50 p-6 rounded-lg">
                         <h3 class="font-bold text-orange-700 mb-4 flex items-center gap-2">
-                            <span>⏳</span> Pending Responses ({{ $riderResponses->where('status', 'assigned')->count() }})
+                            <span>⏳</span> Rider assigned ({{ $riderResponses->where('status', 'rider_assigned')->count() }})
                         </h3>
                         <div class="space-y-3">
-                            @forelse ($riderResponses->where('status', 'assigned') as $order)
+                            @forelse ($riderResponses->where('status', 'rider_assigned') as $order)
                                 <div class="bg-white p-3 rounded border-l-2 border-orange-400">
                                     <p class="font-semibold text-gray-800">#{{ $order->id }} - {{ $order->customer_name }}</p>
                                     <p class="text-sm text-gray-600">
                                         @if ($order->rider)
-                                            👤 {{ $order->rider->user->name }} - Awaiting response
+                                            👤 {{ $order->rider->user->name }} - Awaiting pickup
                                         @else
                                             Not yet assigned
                                         @endif

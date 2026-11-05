@@ -28,6 +28,8 @@
             <div class="space-y-5">
                 <section class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-teal-100 sm:p-7">
                     <div class="mb-5 flex items-center justify-between"><div><p class="text-xs font-black uppercase tracking-widest text-teal-600">01</p><h2 class="mt-1 text-lg font-black text-gray-900">Shipping address</h2></div><span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">Required</span></div>
+                    <label for="customerPhone" class="block text-xs font-bold text-gray-700">Contact phone</label>
+                    <input type="tel" name="customer_phone" id="customerPhone" value="{{ old('customer_phone', auth()->user()->phone) }}" maxlength="20" autocomplete="tel" required class="mt-1 mb-4 w-full rounded-xl border border-teal-200 bg-white px-3 py-3 text-sm text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200" placeholder="Phone number for delivery updates">
                     <div id="deliveryCard" class="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
                         <div class="flex items-start gap-3"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-500 text-white">⌖</span><div class="min-w-0 flex-1"><p class="text-sm font-black text-gray-800">Your delivery location</p><p id="locationStatus" class="mt-1 text-xs leading-5 text-gray-500">Choose door delivery and detect your address, or enter it below.</p></div><button type="button" id="detectLocation" class="shrink-0 text-xs font-black text-teal-700 hover:text-teal-900">Detect</button></div>
                         <label for="deliveryAddress" class="mt-4 block text-xs font-bold text-gray-700">Delivery address</label>

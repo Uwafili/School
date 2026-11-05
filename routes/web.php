@@ -18,6 +18,7 @@ Route::middleware('auth')->group(function(){
     Route::post('/location', [\App\Http\Controllers\LocationController::class, 'update'])->name('location.update');
     Route::post('/orders/{order}/rating', [\App\Http\Controllers\StoreRatingController::class, 'store'])->name('order.rating');
     Route::post('/customer/orders/{order}/cancel', [DashboardController::class, 'cancelOrder'])->name('customer.orders.cancel');
+    Route::get('/customer/orders/{order}', [DashboardController::class, 'showOrder'])->name('customer.orders.show');
     Route::post('/notifications/{notificationId}/read', [DashboardController::class, 'markNotificationAsRead'])->name('notifications.read');
     Route::post('/store/{store}/location', [\App\Http\Controllers\LocationController::class, 'store'])->name('store.location');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -31,6 +32,7 @@ Route::middleware('auth')->group(function(){
     Route::put('/profile', [AuthController::class, 'updateProfile'])->name('profile.update');
 
     Route::get('/orders/{order}/chat/{user}', [MessageController::class, 'chat'])->name('chat.show');
+    Route::get('/orders/{order}/chat/{user}/messages', [MessageController::class, 'messages'])->name('chat.messages');
     Route::post('/orders/{order}/chat', [MessageController::class, 'send'])->name('chat.send');
     
     // Store Routes
@@ -43,6 +45,8 @@ Route::middleware('auth')->group(function(){
     Route::post('/store/notifications/{notificationId}/read', [StoreController::class, 'markStoreNotificationAsRead'])->name('store.notifications.read');
     Route::post('/store/orders/{order}/approve', [StoreController::class, 'approveOrder'])->name('store.orders.approve');
     Route::post('/store/orders/{order}/reject', [StoreController::class, 'rejectOrder'])->name('store.orders.reject');
+    Route::post('/store/orders/{order}/preparing', [StoreController::class, 'startPreparing'])->name('store.orders.preparing');
+    Route::post('/store/orders/{order}/ready', [StoreController::class, 'markReadyForPickup'])->name('store.orders.ready');
     Route::post('/store/orders/{order}/refund/retry', [StoreController::class, 'retryRefund'])->name('store.orders.refund.retry');
     
     Route::get('/checkout', [PaymentController::class, 'checkout'])->name('payment.checkout');
@@ -77,11 +81,11 @@ Route::get('/rider/dashboard', [RiderController::class, 'dashboard'])->name('rid
 Route::get('/rider/notifications', [RiderController::class, 'notifications'])->name('rider.notifications');
 Route::post('/rider/notification/{notificationId}/read', [RiderController::class, 'markNotificationAsRead'])->name('notification.read');
 Route::get('/rider/assigned-orders', [RiderController::class, 'assignedOrders'])->name('rider.assigned-orders');
-Route::post('/rider/order/{orderId}/accept', [RiderController::class, 'acceptOrder'])->name('order.accept');
 Route::post('/rider/order/{orderId}/bid', [RiderController::class, 'placeBid'])->name('order.bid');
 Route::post('/rider/order/{orderId}/reject', [RiderController::class, 'rejectOrder'])->name('order.reject');
 Route::post('/rider/availability', [RiderController::class, 'toggleAvailability'])->name('rider.availability');
 Route::post('/rider/order/{orderId}/pickup', [RiderController::class, 'confirmPickup'])->name('rider.pickup');
+Route::post('/rider/order/{orderId}/out-for-delivery', [RiderController::class, 'markOutForDelivery'])->name('rider.out-for-delivery');
 Route::post('/rider/order/{orderId}/deliver', [RiderController::class, 'confirmDelivery'])->name('rider.deliver');
 Route::get('/api/rider/unread-count', [RiderController::class, 'getUnreadCount'])->name('notification.unread-count');
     Route::get('/api/approval-status', [\App\Http\Controllers\ApprovalNotificationController::class, 'status'])->name('approval.status');
@@ -91,7 +95,6 @@ Route::post('/order/create', [StoreController::class, 'createOrder'])->name('ord
 Route::post('/order/assign', [StoreController::class, 'assignRider'])->name('order.assign');
 Route::post('/order/bid/{bidId}/accept', [StoreController::class, 'acceptBid'])->name('order.bid.accept');
 Route::get('/order/{orderId}/view', [StoreController::class, 'viewOrder'])->name('order.view');
-Route::post('/order/{orderId}/complete', [StoreController::class, 'completeOrder'])->name('order.complete');
 Route::post('/order/{orderId}/cancel', [StoreController::class, 'cancelOrder'])->name('order.cancel');
 
 });
