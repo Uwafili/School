@@ -116,11 +116,19 @@ class MessageController extends Controller
     private function authorizeParticipant(Order $order, int $contactId): void
     {
         $order->loadMissing(['store', 'rider']);
-        $customerId = $order->customer_id;
-        $vendorId = $order->store?->user_id;
-        $riderId = $order->rider?->user_id;
-        $allowed = array_values(array_filter([$customerId, $vendorId, $riderId]));
+        $allowed = array_filter([
+            (int) $order->customer_id,
+            (int) $order->store?->user_id,
+            (int) $order->rider?->user_id,
+        ]);
+        $allowed = array_values(array_filter($allowed, fn (int $id): bool => $id > 0));
+        $authenticatedUserId = (int) Auth::id();
 
-        abort_unless(in_array(Auth::id(), $allowed, true) && in_array($contactId, $allowed, true) && $contactId !== Auth::id(), 403);
+        abort_unless(
+            in_array($authenticatedUserId, $allowed, true)
+                && in_array($contactId, $allowed, true)
+                && $contactId !== $authenticatedUserId,
+            403
+        );
     }
 }

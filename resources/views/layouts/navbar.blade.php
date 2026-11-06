@@ -643,8 +643,8 @@
         </div>
     </nav>
     <!-- Page Loader -->
-    <div id="page-loader"
-        class="fixed inset-0 bg-white flex items-center justify-center z-50 opacity-0 transition-opacity duration-500">
+    <div id="page-loader" aria-hidden="true"
+        class="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-white opacity-100 transition-opacity duration-300">
         <img src="{{ asset('asset/logo.png') }}" class="fade-in-out w-32 h-32" alt="Loading FoodStore">
     </div>
     <!-- filepath: c:\Users\Bishop\School\resources\views\layouts\navbar.blade.php -->
@@ -904,18 +904,52 @@
             }
         }());
 
-        document.addEventListener('DOMContentLoaded', function () {
-            document.getElementById('page-loader').style.opacity = '1';
+        const pageLoader = document.getElementById('page-loader');
+        let loaderTimeout;
+
+        function showPageLoader(persist = false) {
+            if (!pageLoader) return;
+            window.clearTimeout(loaderTimeout);
+            pageLoader.style.display = 'flex';
+            pageLoader.style.opacity = '1';
+            pageLoader.setAttribute('aria-hidden', 'false');
+            if (!persist) {
+                loaderTimeout = window.setTimeout(hidePageLoader, 650);
+            }
+        }
+
+        function hidePageLoader() {
+            if (!pageLoader) return;
+            pageLoader.style.opacity = '0';
+            pageLoader.setAttribute('aria-hidden', 'true');
+            loaderTimeout = window.setTimeout(function () {
+                if (pageLoader.getAttribute('aria-hidden') === 'true') {
+                    pageLoader.style.display = 'none';
+                }
+            }, 300);
+        }
+
+        if (document.readyState === 'complete') {
+            hidePageLoader();
+        } else {
+            window.addEventListener('load', hidePageLoader, { once: true });
+        }
+
+        document.addEventListener('click', function () {
+            showPageLoader();
         });
 
         document.addEventListener('submit', function (event) {
             const form = event.target;
-            if (!(form instanceof HTMLFormElement) || !form.closest('[data-submit-feedback]')) return;
+            if (!(form instanceof HTMLFormElement)) return;
 
             if (form.dataset.submitting === 'true') {
                 event.preventDefault();
                 return;
             }
+
+            showPageLoader(true);
+            if (!form.closest('[data-submit-feedback]')) return;
 
             const submitButton = event.submitter instanceof HTMLButtonElement
                 ? event.submitter

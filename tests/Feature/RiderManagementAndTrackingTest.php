@@ -132,6 +132,16 @@ class RiderManagementAndTrackingTest extends TestCase
             'recipient_code' => '1234',
         ]);
 
+        $this->actingAs($owner)
+            ->get(route('chat.show', [$order, $customer->id]))
+            ->assertOk()
+            ->assertSee($customer->name);
+
+        $this->post(route('chat.send', $order), [
+            'receiver_id' => $customer->id,
+            'message' => 'Your order is on the way.',
+        ])->assertRedirect();
+
         $this->actingAs($customer)
             ->get(route('customer.orders.show', $order))
             ->assertOk()
@@ -144,6 +154,20 @@ class RiderManagementAndTrackingTest extends TestCase
             ->assertSee('MIN ETA')
             ->assertSee('Motorbike')
             ->assertSee('Delivery confirmation code');
+        $this->assertDatabaseHas('messages', [
+            'order_id' => $order->id,
+            'sender_id' => $owner->id,
+            'receiver_id' => $customer->id,
+            'message' => 'Your order is on the way.',
+        ]);
+        $this->get(route('chat.show', [$order, $owner->id]))
+            ->assertOk()
+            ->assertSee('Your order is on the way.');
+
+        $stranger = User::factory()->create();
+        $this->actingAs($stranger)
+            ->get(route('chat.show', [$order, $customer->id]))
+            ->assertForbidden();
     }
 
     private function makeStore(User $owner): Store

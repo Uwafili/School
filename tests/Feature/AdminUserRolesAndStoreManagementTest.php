@@ -25,6 +25,19 @@ class AdminUserRolesAndStoreManagementTest extends TestCase
             ->assertSee('Make admin')
             ->assertSee('Make user');
 
+        $this->get(route('user.edit', $user))
+            ->assertOk()
+            ->assertSee('Edit user')
+            ->assertSee($user->email);
+
+        $this->put(route('user.update', $user), [
+            'name' => 'Updated Test User',
+            'email' => $user->email,
+            'password' => '',
+            'password_confirmation' => '',
+        ])->assertRedirect(route('manage.index'));
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'Updated Test User']);
+
         $this->patch(route('user.role', $user), ['usertype' => 'admin'])
             ->assertRedirect();
         $this->assertDatabaseHas('users', ['id' => $user->id, 'usertype' => 'admin']);
