@@ -139,7 +139,11 @@ class RiderManagementAndTrackingTest extends TestCase
             ->assertSee('Ready for pickup')
             ->assertSee('Delivery Rider')
             ->assertSee('08012345678')
-            ->assertSee('Order placed');
+            ->assertSee('Order placed')
+            ->assertSee('deliveryTrackingMap')
+            ->assertSee('MIN ETA')
+            ->assertSee('Motorbike')
+            ->assertSee('Delivery confirmation code');
     }
 
     private function makeStore(User $owner): Store
