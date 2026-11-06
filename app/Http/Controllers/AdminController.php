@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Store;
-use App\Models\Rider;
-use App\Models\User;
-use App\Models\Order;
 use App\Models\ApprovalNotification;
+use App\Models\Order;
+use App\Models\Rider;
+use App\Models\Store;
+use App\Models\User;
 use App\Services\OrderNotificationService;
 use App\Services\OrderWorkflowService;
 use Illuminate\Http\Request;
@@ -68,23 +68,35 @@ class AdminController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'max:15', 'regex:/^\\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
             'address' => ['required', 'string', 'max:255'],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,avif', 'max:3000'],
         ]);
 
-        $user = DB::transaction(function () use ($validated) {
-            $user = $this->createManagedAccount($validated['owner'], $validated['email']);
+        $imagePath = $request->file('image')?->store('store_images', 'public');
 
-            Store::create([
-                'user_id' => $user->id,
-                'stores' => $validated['stores'],
-                'owner' => $validated['owner'],
-                'email' => $validated['email'],
-                'phone' => $validated['phone'],
-                'address' => $validated['address'],
-                'status' => 'pending',
-            ]);
+        try {
+            $user = DB::transaction(function () use ($validated, $imagePath) {
+                $user = $this->createManagedAccount($validated['owner'], $validated['email']);
 
-            return $user;
-        });
+                Store::create([
+                    'user_id' => $user->id,
+                    'stores' => $validated['stores'],
+                    'owner' => $validated['owner'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['phone'],
+                    'address' => $validated['address'],
+                    'image' => $imagePath,
+                    'status' => 'pending',
+                ]);
+
+                return $user;
+            });
+        } catch (\Throwable $exception) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            throw $exception;
+        }
 
         return $this->sendSetupLink($user, 'storeapprove', 'Store owner account created and submitted for approval.');
     }
@@ -119,12 +131,35 @@ class AdminController extends Controller
     /**
      * Display all stores for admin approval
      */
-    public function storeApprove()
+    public function storeApprove(Request $request)
     {
-        $stores = Store::with('user')->orderBy('created_at', 'desc')->get();
-        
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'in:all,pending,approved,rejected'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        $status = $filters['status'] ?? 'all';
+        $search = trim($filters['search'] ?? '');
+        $storeQuery = Store::with('user')
+            ->when($status !== 'all', fn ($query) => $query->where('status', $status))
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
+                $query->where('stores', 'like', "%{$search}%")
+                    ->orWhere('owner', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            }))
+            ->when(! empty($filters['from']), fn ($query) => $query->whereDate('created_at', '>=', $filters['from']))
+            ->when(! empty($filters['to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['to']));
+        $stores = $storeQuery->latest()->paginate(12)->withQueryString();
+
         return view('admin.storeapprove', [
             'stores' => $stores,
+            'totalCount' => Store::count(),
+            'resultCount' => $stores->total(),
+            'activeStatus' => $status,
+            'search' => $search,
+            'dateFrom' => $filters['from'] ?? '',
+            'dateTo' => $filters['to'] ?? '',
             'pendingCount' => Store::where('status', 'pending')->count(),
             'approvedCount' => Store::where('status', 'approved')->count(),
             'rejectedCount' => Store::where('status', 'rejected')->count(),
@@ -175,7 +210,7 @@ class AdminController extends Controller
             'message' => "Your store, {$store->stores}, has been approved. You can now manage it and start receiving orders.",
             'status' => 'approved',
         ]);
-        
+
         return back()->with('success', "✅ Store '{$store->stores}' has been approved! Owner will be notified.");
     }
 
@@ -192,15 +227,19 @@ class AdminController extends Controller
             'message' => "Your store, {$store->stores}, needs attention. Please review your application details and try again.",
             'status' => 'rejected',
         ]);
-        
+
         return back()->with('warning', "❌ Store '{$store->stores}' has been rejected.");
     }
 
     public function showStore(Store $store)
     {
         $store->load('user');
+        $approvalHistory = ApprovalNotification::where('user_id', $store->user_id)
+            ->where('role', 'store')
+            ->latest()
+            ->get();
 
-        return view('admin.store-details', compact('store'));
+        return view('admin.store-details', compact('store', 'approvalHistory'));
     }
 
     public function destroyStore(Store $store)

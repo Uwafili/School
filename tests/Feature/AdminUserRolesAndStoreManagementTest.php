@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -60,19 +61,77 @@ class AdminUserRolesAndStoreManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(route('storeapprove'))
             ->assertOk()
-            ->assertSee('View details')
+            ->assertSee('Details')
             ->assertSee('Delete store')
             ->assertSee(route('admin.stores.show', $store));
 
         $this->get(route('admin.stores.show', $store))
             ->assertOk()
             ->assertSee('Test Store')
-            ->assertSee($owner->email);
+            ->assertSee($owner->email)
+            ->assertSee('Application timeline');
+
+        $this->get(route('stores.edit', $store))
+            ->assertOk()
+            ->assertSee('Edit store profile');
+
+        $this->put(route('stores.update', $store), [
+            'stores' => 'Updated Test Store',
+            'owner' => $owner->name,
+            'email' => $owner->email,
+            'phone' => '08012345678',
+            'address' => 'Updated address',
+        ])->assertRedirect(route('storeapprove'));
+        $this->assertDatabaseHas('stores', ['id' => $store->id, 'address' => 'Updated address']);
 
         $this->delete(route('admin.stores.destroy', $store))
             ->assertRedirect(route('storeapprove'));
 
         $this->assertDatabaseMissing('stores', ['id' => $store->id]);
         Storage::disk('public')->assertMissing('store_images/logo.png');
+    }
+
+    public function test_admin_can_filter_stores_by_search_status_and_registration_dates(): void
+    {
+        $admin = User::factory()->create(['usertype' => 'admin']);
+        $approvedOwner = User::factory()->create();
+        $pendingOwner = User::factory()->create();
+
+        $approvedStore = Store::create([
+            'user_id' => $approvedOwner->id,
+            'stores' => 'Harbor Kitchen',
+            'owner' => 'Taylor Reed',
+            'email' => $approvedOwner->email,
+            'phone' => '08012345678',
+            'address' => 'Lagos',
+            'status' => 'approved',
+        ]);
+        $approvedStore->forceFill(['created_at' => Carbon::now()->subDay()])->save();
+        $pendingStore = Store::create([
+            'user_id' => $pendingOwner->id,
+            'stores' => 'Garden Cafe',
+            'owner' => 'Jordan Lane',
+            'email' => $pendingOwner->email,
+            'phone' => '08012345679',
+            'address' => 'Abuja',
+            'status' => 'pending',
+        ]);
+        $pendingStore->forceFill(['created_at' => Carbon::now()->subDays(10)])->save();
+
+        $this->actingAs($admin)
+            ->get(route('storeapprove', [
+                'search' => 'Taylor',
+                'status' => 'approved',
+                'from' => Carbon::now()->subDays(2)->toDateString(),
+                'to' => Carbon::now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('Harbor Kitchen')
+            ->assertDontSee('Garden Cafe');
+
+        $this->get(route('storeapprove', ['status' => 'pending']))
+            ->assertOk()
+            ->assertSee('Garden Cafe')
+            ->assertDontSee('Harbor Kitchen');
     }
 }

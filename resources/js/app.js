@@ -4,6 +4,45 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
+const deleteStoreDialog = document.querySelector('[data-store-delete-dialog]');
+const deleteStoreForm = deleteStoreDialog?.querySelector('[data-store-delete-form]');
+
+document.querySelectorAll('[data-delete-store]').forEach((button) => {
+    button.addEventListener('click', () => {
+        if (!deleteStoreDialog || !deleteStoreForm) {
+            if (window.confirm(`Delete "${button.dataset.storeName}"? Related records may also be affected. This action cannot be undone.`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = button.dataset.deleteUrl;
+                const token = document.createElement('input');
+                token.type = 'hidden';
+                token.name = '_token';
+                token.value = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const method = document.createElement('input');
+                method.type = 'hidden';
+                method.name = '_method';
+                method.value = 'DELETE';
+                form.append(token, method);
+                document.body.append(form);
+                form.submit();
+            }
+            return;
+        }
+
+        deleteStoreForm.action = button.dataset.deleteUrl;
+        deleteStoreDialog.querySelector('[data-delete-store-name]').textContent = button.dataset.storeName;
+        deleteStoreDialog.showModal();
+    });
+});
+
+deleteStoreDialog?.querySelector('[data-close-delete-dialog]')?.addEventListener('click', () => {
+    deleteStoreDialog.close();
+});
+
+deleteStoreDialog?.addEventListener('click', (event) => {
+    if (event.target === deleteStoreDialog) deleteStoreDialog.close();
+});
+
 const page = document.body;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 const notificationList = document.querySelector('[data-store-notifications]');
