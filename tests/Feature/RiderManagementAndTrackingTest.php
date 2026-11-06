@@ -15,6 +15,25 @@ class RiderManagementAndTrackingTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_broadcast_notifications_require_a_complete_pusher_configuration(): void
+    {
+        $notification = new OrderUpdateNotification('Order update', 'Order changed.', 'order_status_preparing', 1, 'FS-1');
+        config([
+            'broadcasting.default' => 'pusher',
+            'broadcasting.enabled' => false,
+            'broadcasting.connections.pusher.key' => 'public-key',
+        ]);
+        $this->assertSame(['database'], $notification->via(new User));
+
+        config([
+            'broadcasting.enabled' => true,
+            'broadcasting.connections.pusher.app_id' => 'app-id',
+            'broadcasting.connections.pusher.secret' => 'private-secret',
+            'broadcasting.connections.pusher.options.cluster' => 'eu',
+        ]);
+        $this->assertSame(['database', 'broadcast'], $notification->via(new User));
+    }
+
     public function test_admin_can_activate_riders_assign_ready_orders_and_view_delivery_operations(): void
     {
         $admin = User::factory()->create(['usertype' => 'admin']);

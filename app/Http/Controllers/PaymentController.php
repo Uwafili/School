@@ -7,7 +7,6 @@ use App\Models\Order;
 use App\Models\Notification as UserNotification;
 use App\Models\Post;
 use App\Models\OrderItem;
-use App\Events\StoreOrderCreated;
 use App\Jobs\ProcessPaystackRefund;
 use App\Services\OrderNotificationService;
 use Illuminate\Http\Client\ConnectionException;
@@ -389,23 +388,6 @@ class PaymentController extends Controller
             }
         }
 
-        if (config('broadcasting.default') !== 'pusher' || ! config('broadcasting.connections.pusher.key')) {
-            return;
-        }
-
-        foreach ($dispatches as $dispatch) {
-            $notification = $dispatch['notification'];
-            if (! $notification) {
-                continue;
-            }
-
-            event(new StoreOrderCreated($dispatch['store_user_id'], [
-                'id' => $notification->id,
-                'order_id' => $notification->order_id,
-                'title' => $notification->title,
-                'message' => $notification->message,
-            ]));
-        }
     }
 
 

@@ -3,7 +3,7 @@
 
 @section('content')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_transparent_32%),#f8fafc] py-6 px-3 sm:px-6 lg:px-8">
+    <div data-store-dashboard class="min-h-screen bg-[radial-gradient(circle_at_top_left,_#fff7ed,_transparent_32%),#f8fafc] py-6 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
             <div class="mb-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div><p class="text-xs font-black uppercase tracking-[.18em] text-orange-500">FoodStore partner center</p><h1 class="mt-1 text-3xl font-black tracking-tight text-gray-900">Store dashboard</h1></div>
@@ -67,7 +67,7 @@
             <section class="mb-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100" aria-live="polite">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <h2 class="text-lg font-black text-gray-900">New order notifications</h2>
-                    <span class="text-xs font-bold text-gray-500">{{ $storeNotifications->whereNull('read_at')->count() }} unread</span>
+                    <span data-store-unread-count="{{ $storeNotifications->whereNull('read_at')->count() }}" class="text-xs font-bold text-gray-500">{{ $storeNotifications->whereNull('read_at')->count() }} unread</span>
                 </div>
                 <div class="space-y-3" data-store-notifications data-store-user-id="{{ auth()->id() }}">
                     @forelse ($storeNotifications as $notification)
@@ -580,5 +580,4 @@
         @endforeach
     </script>
     @endif
-    @vite('resources/js/app.js')
 @endsection

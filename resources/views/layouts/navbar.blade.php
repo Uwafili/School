@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>FoodStore</title>
+    @vite('resources/js/app.js')
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
@@ -373,7 +374,16 @@
     </style>
 </head>
 
-<body x-data="{ darkMode: localStorage.getItem('foodstore-theme') === 'dark' }"
+<body
+    data-foodstore-user-id="{{ Auth::id() }}"
+    data-foodstore-rider-id="{{ Auth::check() ? \App\Models\Rider::where('user_id', Auth::id())->where('status', 'approved')->where('is_active', true)->value('id') : '' }}"
+    data-foodstore-broadcast-enabled="{{ config('broadcasting.enabled') ? 'true' : 'false' }}"
+    data-foodstore-pusher-key="{{ config('broadcasting.enabled') ? config('broadcasting.connections.pusher.key') : '' }}"
+    data-foodstore-pusher-cluster="{{ config('broadcasting.enabled') ? config('broadcasting.connections.pusher.options.cluster') : '' }}"
+    data-foodstore-pusher-host="{{ config('broadcasting.enabled') ? config('broadcasting.connections.pusher.options.client_host') : '' }}"
+    data-foodstore-pusher-port="{{ config('broadcasting.enabled') ? config('broadcasting.connections.pusher.options.port') : '' }}"
+    data-foodstore-pusher-scheme="{{ config('broadcasting.enabled') ? config('broadcasting.connections.pusher.options.scheme') : '' }}"
+    x-data="{ darkMode: localStorage.getItem('foodstore-theme') === 'dark' }"
     x-init="$watch('darkMode', value => { localStorage.setItem('foodstore-theme', value ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', value); document.body.classList.toggle('theme-dark', value); }); document.documentElement.classList.toggle('dark', darkMode); document.body.classList.toggle('theme-dark', darkMode)"
     :class="darkMode ? 'theme-dark' : ''">
     <nav x-data="{ open: false, dashboardMenu: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"

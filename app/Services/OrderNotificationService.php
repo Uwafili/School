@@ -40,16 +40,18 @@ class OrderNotificationService
             return null;
         }
 
+        $rider = Rider::where('user_id', $userId)->first();
         $legacyNotification = Notification::create([
             'user_id' => $userId,
-            'rider_id' => Rider::where('user_id', $userId)->value('id'),
+            'rider_id' => $rider?->id,
             'order_id' => $order->id,
             'title' => $title,
             'message' => $message,
             'type' => $type,
         ]);
 
-        User::findOrFail($userId)->notify(new OrderUpdateNotification(
+        $notifiable = $rider ?? User::findOrFail($userId);
+        $notifiable->notify(new OrderUpdateNotification(
             $title,
             $message,
             $type,
@@ -90,23 +92,6 @@ class OrderNotificationService
             return null;
         }
 
-        $legacyNotification = Notification::create([
-            'user_id' => $rider->user_id,
-            'rider_id' => $rider->id,
-            'order_id' => $order->id,
-            'title' => $title,
-            'message' => $message,
-            'type' => $type,
-        ]);
-
-        $rider->notify(new OrderUpdateNotification(
-            $title,
-            $message,
-            $type,
-            $order->id,
-            $order->order_reference ?? 'FS-'.$order->id
-        ));
-
-        return $legacyNotification;
+        return $this->sendToUser($rider->user_id, $order, $title, $message, $type);
     }
 }

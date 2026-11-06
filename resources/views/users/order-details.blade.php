@@ -14,7 +14,7 @@
     ];
     $currentStep = array_search($order->status, array_keys($workflowSteps), true);
 @endphp
-<main class="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+<main data-order-tracking data-order-id="{{ $order->id }}" class="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-3xl space-y-5">
         <a href="{{ route('dashboard') }}" class="inline-flex font-bold text-orange-700 hover:text-orange-900">← Back to orders</a>
 

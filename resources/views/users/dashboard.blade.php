@@ -2,7 +2,7 @@
 
 @section('content')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <div class="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+    <div data-customer-dashboard class="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
         <div class="mx-auto max-w-7xl">
             <div class="mb-5 flex items-center justify-between gap-4">
                 <div class="flex min-w-0 items-center gap-3">

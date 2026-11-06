@@ -23,8 +23,7 @@ class OrderUpdateNotification extends Notification
     {
         $channels = ['database'];
 
-        if (config('broadcasting.default') === 'pusher'
-            && config('broadcasting.connections.pusher.key')) {
+        if (config('broadcasting.enabled')) {
             $channels[] = 'broadcast';
         }
 

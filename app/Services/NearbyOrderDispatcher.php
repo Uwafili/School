@@ -11,8 +11,7 @@ class NearbyOrderDispatcher
 {
     public function dispatch(Order $order): void
     {
-        if (config('broadcasting.default') !== 'pusher'
-            || ! config('broadcasting.connections.pusher.key')
+        if (! config('broadcasting.enabled')
             || $order->status !== 'ready_for_pickup'
             || $order->payment_status !== 'paid'
             || $order->rider_id) {

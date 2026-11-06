@@ -134,6 +134,7 @@ class OrderDispatchTest extends TestCase
         ]);
         config([
             'broadcasting.default' => 'pusher',
+            'broadcasting.enabled' => true,
             'broadcasting.connections.pusher.key' => 'test-key',
             'services.paystack.secret_key' => 'sk_test_example',
         ]);

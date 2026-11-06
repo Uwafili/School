@@ -21,6 +21,18 @@ php artisan migrate
 
 Online checkout and refunds require `PAYSTACK_SECRET_KEY`. Database notifications are enabled by default. To enable real-time broadcasts, configure `BROADCAST_CONNECTION=pusher` and set `PUSHER_APP_ID`, `PUSHER_APP_KEY`, `PUSHER_APP_SECRET`, and `PUSHER_APP_CLUSTER`; `PUSHER_HOST`, `PUSHER_PORT`, and `PUSHER_SCHEME` are optional overrides.
 
+The Pusher key and cluster are published to the authenticated page for Laravel Echo. Echo listens for account and rider notifications throughout the application, refreshes active order views when their state changes, and receives nearby delivery offers on the rider dashboard. Keep a queue worker running so queued broadcast events are delivered:
+
+```sh
+php artisan queue:work
+```
+
+After changing broadcast settings, refresh Laravel's cached configuration if applicable:
+
+```sh
+php artisan config:clear
+```
+
 Run the end-to-end ordering, messaging, delivery, authorization, cancellation, and failure workflow tests with:
 
 ```sh
