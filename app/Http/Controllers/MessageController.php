@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\OrderNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,27 +15,9 @@ class MessageController extends Controller
     public function chat(Order $order, int $user)
     {
         $this->authorizeParticipant($order, $user);
+        $contact = User::findOrFail($user);
 
-        $messages = Message::where('order_id', $order->id)
-            ->where(function ($query) use ($user) {
-                $query->where(function ($conversation) use ($user) {
-                    $conversation->where('sender_id', Auth::id())->where('receiver_id', $user);
-                })->orWhere(function ($conversation) use ($user) {
-                    $conversation->where('sender_id', $user)->where('receiver_id', Auth::id());
-                });
-            })
-            ->with('sender')
-            ->oldest()
-            ->get();
-
-        Message::where('order_id', $order->id)
-            ->where('sender_id', $user)
-            ->where('receiver_id', Auth::id())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
-
-        $contact = \App\Models\User::findOrFail($user);
-        return view('chat', compact('messages', 'order', 'contact'));
+        return view('chat', compact('order', 'contact'));
     }
 
     public function messages(Request $request, Order $order, int $user)
@@ -105,7 +88,7 @@ class MessageController extends Controller
                 (int) $validated['receiver_id'],
                 $order,
                 $title,
-                'You received a new message about order #' . $order->id . '.',
+                'You received a new message about order #'.$order->id.'.',
                 $type
             );
         });

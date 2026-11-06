@@ -133,33 +133,15 @@ class AdminController extends Controller
      */
     public function storeApprove(Request $request)
     {
-        $filters = $request->validate([
+        $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:all,pending,approved,rejected'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
         ]);
-        $status = $filters['status'] ?? 'all';
-        $search = trim($filters['search'] ?? '');
-        $storeQuery = Store::with('user')
-            ->when($status !== 'all', fn ($query) => $query->where('status', $status))
-            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
-                $query->where('stores', 'like', "%{$search}%")
-                    ->orWhere('owner', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            }))
-            ->when(! empty($filters['from']), fn ($query) => $query->whereDate('created_at', '>=', $filters['from']))
-            ->when(! empty($filters['to']), fn ($query) => $query->whereDate('created_at', '<=', $filters['to']));
-        $stores = $storeQuery->latest()->paginate(12)->withQueryString();
 
         return view('admin.storeapprove', [
-            'stores' => $stores,
             'totalCount' => Store::count(),
-            'resultCount' => $stores->total(),
-            'activeStatus' => $status,
-            'search' => $search,
-            'dateFrom' => $filters['from'] ?? '',
-            'dateTo' => $filters['to'] ?? '',
             'pendingCount' => Store::where('status', 'pending')->count(),
             'approvedCount' => Store::where('status', 'approved')->count(),
             'rejectedCount' => Store::where('status', 'rejected')->count(),

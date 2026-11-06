@@ -23,7 +23,7 @@
                     <div class="mt-5 flex items-center gap-3 border-b border-gray-100 pb-5"><span class="grid h-10 w-10 place-items-center rounded-full bg-purple-100 font-black text-purple-700">{{ strtoupper(substr($post->user->name ?? 'S', 0, 1)) }}</span><div><p class="text-xs text-gray-400">Posted by</p><p class="text-sm font-black text-gray-800">{{ $post->user->name ?? 'FoodStore seller' }}</p></div><span class="ml-auto text-xs text-gray-400">{{ $post->created_at->diffForHumans() }}</span></div>
                     <div class="my-5 grid grid-cols-3 gap-2 text-center"><div class="rounded-xl bg-yellow-50 p-3"><p class="text-sm font-black text-yellow-700">4.8</p><p class="text-[10px] font-bold text-gray-400">Rating</p></div><div class="rounded-xl bg-orange-50 p-3"><p class="text-sm font-black text-orange-700">Fresh</p><p class="text-[10px] font-bold text-gray-400">Quality</p></div><div class="rounded-xl bg-purple-50 p-3"><p class="text-sm font-black text-purple-700">Local</p><p class="text-[10px] font-bold text-gray-400">Seller</p></div></div>
                     <div class="flex-1"><h2 class="mb-2 text-sm font-black text-gray-900">Description</h2><p class="text-sm leading-7 text-gray-600">{{ $post->description }}</p></div>
-                    <form action="{{ route('add.cart', $post->id) }}" method="POST" class="mt-7">@csrf<button type="submit" class="w-full rounded-2xl bg-gray-900 py-3.5 text-sm font-black text-white transition hover:bg-yellow-500 hover:text-gray-900">Add to cart · ₦{{ $post->price }}</button></form>
+                    <div class="mt-7"><livewire:cart-add-button :post-id="$post->id" :key="'cart-add-'.$post->id" /></div>
                 </div>
             </div>
         </article>

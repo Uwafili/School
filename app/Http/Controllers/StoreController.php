@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Store;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
+use App\Jobs\ProcessPaystackRefund;
+use App\Models\DeliveryBid;
+use App\Models\Message;
 use App\Models\Order;
 use App\Models\Rider;
-use App\Jobs\ProcessPaystackRefund;
+use App\Models\Store;
+use App\Models\StoreRating;
 use App\Services\NearbyOrderDispatcher;
 use App\Services\OrderNotificationService;
+use App\Services\OrderRiderAssignmentService;
 use App\Services\OrderWorkflowService;
-use App\Models\Message;
-
-
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class StoreController extends Controller
 {
@@ -37,7 +37,7 @@ class StoreController extends Controller
             : null;
 
         return view('enroll.store', compact('store'));
-    } 
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -45,46 +45,45 @@ class StoreController extends Controller
     public function store(Request $request)
     {
         // Check if user is already a registered rider
-        $rider = \App\Models\Rider::where('user_id', Auth::id())->latest()->first();
+        $rider = Rider::where('user_id', Auth::id())->latest()->first();
         if ($rider) {
             return redirect()->back()->with('error', 'You cannot create a store because you are registered as a rider. Please create a new account if you want to open a store.');
         }
 
-        $validated=$request->validate([
-             'stores'=>['required', 'max:255'],
-             'owner'=>['required', 'max:255'],
-             'email'=>['required','max:255', 'email'],
-             'phone'=>['required', 'max:15', 'regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
-             'address'=>['required', 'max:255'],
-             'image'=>['file', 'nullable', 'mimes:jpg,png,jpeg,avif','max:3000'],
-             'latitude'=>['nullable','numeric','between:-90,90'],
-             'longitude'=>['nullable','numeric','between:-180,180'],
+        $validated = $request->validate([
+            'stores' => ['required', 'max:255'],
+            'owner' => ['required', 'max:255'],
+            'email' => ['required', 'max:255', 'email'],
+            'phone' => ['required', 'max:15', 'regex:/^\+?[0-9]{1,4}?[-. ]?([0-9]{1,3}[-. ]?){1,4}[0-9]{1,4}$/'],
+            'address' => ['required', 'max:255'],
+            'image' => ['file', 'nullable', 'mimes:jpg,png,jpeg,avif', 'max:3000'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
-        $path=null;
-        if($request->hasFile('image')){
-            $path=Storage::disk('public')->put('post_image', $request->file('image'));
+        $path = null;
+        if ($request->hasFile('image')) {
+            $path = Storage::disk('public')->put('post_image', $request->file('image'));
         }
-        $store=Store::create([
-            'stores'=> $request->stores,
+        $store = Store::create([
+            'stores' => $request->stores,
             'owner' => $request->owner,
             'email' => $request->email,
             'phone' => $request->phone,
-            'address'=> $request->address,
-            'image'=> $path,
+            'address' => $request->address,
+            'image' => $path,
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
-            "user_id"=>Auth::id(),
-            'status' => 'pending'
+            'user_id' => Auth::id(),
+            'status' => 'pending',
 
         ]);
-
 
         if ($store) {
             return redirect()->route('store.info')->with('success', 'Store submitted successfully. Awaiting admin approval.');
         } else {
             return redirect()->back()->with('failed', 'Failed to create store.');
         }
-         
+
     }
 
     /**
@@ -93,8 +92,8 @@ class StoreController extends Controller
     public function Storedashboard()
     {
         $id = Auth::id();
-        $stores = Store::where("user_id", '=', $id)->get();
-        
+        $stores = Store::where('user_id', '=', $id)->get();
+
         // Get pending orders for this store
         $orders = Order::whereIn('store_id', $stores->pluck('id'))
             ->where('status', 'ready_for_pickup')
@@ -108,13 +107,13 @@ class StoreController extends Controller
             ->with(['customer', 'messages' => fn ($query) => $query->where('receiver_id', $id)->whereNull('read_at')])
             ->latest()
             ->get();
-        
+
         // Get approved riders
         $riders = Rider::with('user')->where('status', 'approved')->where('is_active', true)->get();
         $onlineRiders = $riders->where('is_online', true);
         $store = $stores->first();
         $nearbyRiders = $onlineRiders->filter(function ($rider) use ($store) {
-            if (!$store?->latitude || !$store?->longitude || !$rider->latitude || !$rider->longitude) {
+            if (! $store?->latitude || ! $store?->longitude || ! $rider->latitude || ! $rider->longitude) {
                 return false;
             }
 
@@ -123,37 +122,37 @@ class StoreController extends Controller
 
             return $distance <= 25;
         })->sortBy('distance_km')->values();
-        
+
         // Calculate statistics
         $storeIds = $stores->pluck('id');
-        
+
         // Total orders
         $totalOrders = Order::whereIn('store_id', $storeIds)
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->count();
-        
+
         // Revenue is earned only after delivery is completed.
         $totalRevenue = Order::whereIn('store_id', $storeIds)
             ->where('status', 'delivered')
             ->sum('total_price');
-        
+
         // Week's orders and revenue
         $weekOrders = Order::whereIn('store_id', $storeIds)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
-        
+
         $weekRevenue = Order::whereIn('store_id', $storeIds)
             ->where('status', 'delivered')
             ->where('created_at', '>=', now()->subDays(7))
             ->sum('total_price');
-        
+
         // Active riders (approved and have accepted orders)
         $activeRiders = Rider::where('status', 'approved')
             ->where('is_active', true)
             ->whereIn('id', Order::whereIn('store_id', $storeIds)
                 ->pluck('rider_id'))
             ->count();
-        
+
         // Recent orders (last 10)
         $recentOrders = Order::whereIn('store_id', $storeIds)
             ->with(['rider.user', 'customer', 'deliveryBids.rider.user'])
@@ -174,7 +173,7 @@ class StoreController extends Controller
             (int) ($unreadMessagesByOrder[$order->id] ?? 0)
         ));
         $unreadMessageCount = $unreadMessagesByOrder->sum();
-        
+
         // Rider responses (orders with riders and their status)
         $riderResponses = Order::whereIn('store_id', $storeIds)
             ->whereNotNull('rider_id')
@@ -183,10 +182,10 @@ class StoreController extends Controller
             ->limit(10)
             ->get();
 
-        $ratingStats = \App\Models\StoreRating::whereIn('store_id', $storeIds)
+        $ratingStats = StoreRating::whereIn('store_id', $storeIds)
             ->selectRaw('COALESCE(AVG(rating), 0) as average, COUNT(*) as count')
             ->first();
-        
+
         return view('enroll.storedashboard', [
             'stores' => $stores,
             'orders' => $orders,
@@ -233,11 +232,12 @@ class StoreController extends Controller
     public function displayStore()
     {
         $store = Store::where('user_id', Auth::id())->latest()->first();
+
         return view('enroll.store', ['store' => $store]);
     }
 
     /**
-     * Show detailed store information  
+     * Show detailed store information
      */
     public function show(Store $store)
     {
@@ -286,11 +286,11 @@ class StoreController extends Controller
         ]);
 
         $store = Store::where('user_id', Auth::id())->first();
-        if (!$store) {
+        if (! $store) {
             return redirect()->back()->with('error', 'You need to have a store to create orders.');
         }
 
-        $order = \App\Models\Order::create([
+        $order = Order::create([
             'store_id' => $store->id,
             'customer_id' => null,
             'customer_name' => $validated['customer_name'],
@@ -331,6 +331,7 @@ class StoreController extends Controller
     {
         Store::where('user_id', Auth::id())->findOrFail($order->store_id);
         $order = $workflow->transition($order, 'preparing');
+
         return back()->with('success', 'Order marked as preparing.');
     }
 
@@ -388,7 +389,7 @@ class StoreController extends Controller
     /**
      * Assign an order to a rider
      */
-    public function assignRider(Request $request, OrderNotificationService $notifications)
+    public function assignRider(Request $request, OrderRiderAssignmentService $assignments)
     {
         $validated = $request->validate([
             'order_id' => 'required|exists:orders,id',
@@ -397,64 +398,14 @@ class StoreController extends Controller
 
         $order = Order::findOrFail($validated['order_id']);
         $isAdmin = Auth::user()->usertype === 'admin';
-        $store = Store::findOrFail($order->store_id);
-        abort_unless($isAdmin || $store->user_id === Auth::id(), 403);
-        abort_unless(
-            $order->status === 'ready_for_pickup'
-                && $order->payment_status === 'paid'
-                && $order->store_approval_status === 'approved'
-                && $order->rider_id === null,
-            422,
-            'Only paid, approved orders ready for pickup can be assigned.'
-        );
-
-        // Update the order with rider and status
-        $rider = \App\Models\Rider::where('id', $validated['rider_id'])
-            ->where('status', 'approved')
-            ->where('is_active', true)
-            ->where('is_online', true)
-            ->first();
-
-        if (!$rider) {
-            return redirect()->back()->with('error', 'Choose an approved rider who is currently online.');
-        }
-
-        if ($rider->latitude !== null && $rider->longitude !== null && $store->latitude !== null && $store->longitude !== null
-            && $this->distanceInKilometres($store->latitude, $store->longitude, $rider->latitude, $rider->longitude) > 25) {
-            return redirect()->back()->with('error', 'Choose a rider within 25 km of your store.');
-        }
-
-        $deliveryFee = $order->delivery_fee;
-
-        $order = app(OrderWorkflowService::class)->transition(
-            $order,
-            'rider_assigned',
-            [
-                'rider_id' => $rider->id,
-                'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
-                'delivery_fee' => $deliveryFee,
-            ],
-            function (Order $lockedOrder) use ($store, $rider): bool {
-                $lockedRider = Rider::query()->lockForUpdate()->find($rider->id);
-
-                return $lockedOrder->store_id === $store->id
-                    && $lockedOrder->status === 'ready_for_pickup'
-                    && $lockedOrder->payment_status === 'paid'
-                    && $lockedOrder->store_approval_status === 'approved'
-                    && ! $lockedOrder->rider_id
-                    && $lockedRider?->status === 'approved'
-                    && $lockedRider->is_active
-                    && $lockedRider->is_online;
-            }
-        );
-        $notifications->sendToRider($order, 'New order assigned', "You have been assigned order {$order->order_reference} from {$store->stores}. Delivery pay: ₦{$deliveryFee}", 'order_assigned');
+        $assignments->assign($order, (int) $validated['rider_id'], Auth::user());
 
         return redirect()->route($isAdmin ? 'riders' : 'storedashboard')->with('success', 'Order assigned to rider successfully! Rider notified.');
     }
 
     public function acceptBid($bidId)
     {
-        $bid = \App\Models\DeliveryBid::with(['order', 'rider'])->findOrFail($bidId);
+        $bid = DeliveryBid::with(['order', 'rider'])->findOrFail($bidId);
         $order = $bid->order;
         $store = Store::where('user_id', Auth::id())->findOrFail($order->store_id);
 
@@ -472,7 +423,7 @@ class StoreController extends Controller
                 'recipient_code' => str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT),
             ],
             function (Order $lockedOrder) use ($bid, $store): bool {
-                $lockedBid = \App\Models\DeliveryBid::query()->lockForUpdate()->find($bid->id);
+                $lockedBid = DeliveryBid::query()->lockForUpdate()->find($bid->id);
                 $rider = $lockedBid ? Rider::query()->lockForUpdate()->find($lockedBid->rider_id) : null;
                 if ($lockedOrder->store_id !== $store->id
                     || ! $lockedBid || $lockedBid->status !== 'pending' || ! $rider
@@ -519,8 +470,7 @@ class StoreController extends Controller
                 'recipient_code' => null,
                 'refund_status' => $isPaid ? 'pending' : 'none',
                 'payment_status' => $isPaid ? 'refund_pending' : $order->payment_status,
-            ], fn (Order $lockedOrder): bool =>
-                $lockedOrder->store_id === $store->id
+            ], fn (Order $lockedOrder): bool => $lockedOrder->store_id === $store->id
                     && $lockedOrder->status === 'rider_assigned'
                     && $lockedOrder->picked_up_at === null
             );

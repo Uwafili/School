@@ -22,10 +22,7 @@
             <span class="ml-auto shrink-0 text-[10px] text-gray-400">{{ $post->created_at->diffForHumans(null, true) }}</span>
         </div>
         <div class="grid grid-cols-[1fr_auto] gap-2">
-            <form action="{{ route('add.cart', $post->id) }}" method="POST">
-                @csrf
-                <button type="submit" class="w-full rounded-xl bg-gray-900 py-2.5 text-xs font-black text-white transition hover:bg-yellow-500 hover:text-gray-900">Add to cart</button>
-            </form>
+            <livewire:cart-add-button :post-id="$post->id" :key="'cart-add-'.$post->id" />
             <a href="{{ route('food.view', $post) }}" class="grid min-w-10 place-items-center rounded-xl bg-yellow-100 px-3 text-xs font-black text-yellow-800 transition hover:bg-yellow-200" aria-label="View {{ $post->title }} details">View</a>
         </div>
     </div>

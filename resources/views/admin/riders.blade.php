@@ -40,26 +40,7 @@
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 class="mb-1 text-xl font-bold text-gray-800">Assign a ready order</h2>
             <p class="mb-4 text-sm text-gray-600">Choose a paid order and an approved rider who is active and online.</p>
-            <form action="{{ route('order.assign') }}" method="POST" class="space-y-4">
-                @csrf
-                <label class="block text-sm font-semibold">Ready order
-                    <select name="order_id" required class="mt-1 w-full rounded-lg border-gray-300">
-                        <option value="">Select an order</option>
-                        @foreach($readyOrders as $order)
-                            <option value="{{ $order->id }}">#{{ $order->id }} · {{ $order->order_reference }} · {{ $order->store->stores }} · {{ $order->customer_name }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <label class="block text-sm font-semibold">Available rider
-                    <select name="rider_id" required class="mt-1 w-full rounded-lg border-gray-300">
-                        <option value="">Select a rider</option>
-                        @foreach($availableRiders as $rider)
-                            <option value="{{ $rider->id }}">{{ $rider->name }} · {{ $rider->phone }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <button type="submit" class="rounded-lg bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">Assign order</button>
-            </form>
+            <livewire:order-assignment :admin-mode="true" />
             @if($readyOrders->isEmpty() || $availableRiders->isEmpty())
                 <p class="mt-3 text-xs text-gray-500">Assignment requires at least one ready paid order and one available rider.</p>
             @endif

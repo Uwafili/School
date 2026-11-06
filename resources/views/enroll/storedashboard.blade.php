@@ -46,15 +46,7 @@
                                     @if ($order->customer_id)
                                         <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">Message customer @if($order->unread_message_count)<span class="ml-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] text-white">{{ $order->unread_message_count }} new</span>@endif</a>
                                     @endif
-                                    <form method="POST" action="{{ route('store.orders.approve', $order) }}">
-                                        @csrf
-                                        <button type="submit" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700">Approve</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('store.orders.reject', $order) }}" class="flex flex-wrap gap-2">
-                                        @csrf
-                                        <input name="reason" maxlength="500" placeholder="Reason (optional)" class="min-w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                                        <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700" onclick="return confirm('Reject this order and start a Paystack refund?')">Reject</button>
-                                    </form>
+                                    <livewire:store-order-actions :order="$order" :key="'store-pending-'.$order->id" />
                                 </div>
                             </div>
                         </article>
@@ -217,39 +209,7 @@
                         <h3 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
                             <span>🎯</span> Assign Order to Rider
                         </h3>
-                        <form action="{{ route('order.assign') }}" method="POST" class="space-y-4">
-                            @csrf
-                            <select name="order_id"
-                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
-                                required>
-                                <option disabled selected class="text-gray-500">📦 Select an order ready for pickup</option>
-                                @forelse ($orders as $order)
-                                    <option value="{{ $order->id }}">
-                                        #{{ $order->id }} - {{ $order->customer_name }} ({{ $order->customer_address }}) - ₦{{ $order->total_price }}
-                                    </option>
-                                @empty
-                                    <option disabled>No orders ready for pickup</option>
-                                @endforelse
-                            </select>
-
-                            <select name="rider_id"
-                                class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none transition"
-                                required>
-                                <option disabled selected class="text-gray-500">🚴 Select an Approved Rider</option>
-                                @forelse ($nearbyRiders as $rider)
-                                    <option value="{{ $rider->id }}">
-                                        👤 {{ $rider->user->name ?? $rider->name }} - {{ $rider->distance_km }} km away
-                                    </option>
-                                @empty
-                                    <option disabled>No nearby riders with shared locations</option>
-                                @endforelse
-                            </select>
-
-                            <button type="submit"
-                                class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 rounded-lg transition shadow-md">
-                                🎯 Assign to Rider
-                            </button>
-                        </form>
+                        <livewire:order-assignment />
                     </div>
                 </div>
 
@@ -314,9 +274,7 @@
                                             <span class="text-gray-500">Not assigned</span>
                                         @endif
                                     </td>
-                                    <td class="py-4 px-5">
-                                        <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
-                                    </td>
+                                    <td class="py-4 px-5"><livewire:store-order-actions :order="$order" :key="'store-order-'.$order->id" /></td>
                                     <td class="py-4 px-5 text-gray-600">{{ $order->created_at->format('Y-m-d') }}</td>
                                     <td class="py-4 px-5">
                                         <div class="flex gap-2">
@@ -325,34 +283,6 @@
                                             </a>
                                             @if ($order->customer_id)
                                                 <a href="{{ route('chat.show', [$order->id, $order->customer_id]) }}" class="text-indigo-600 hover:text-indigo-800 font-semibold text-sm px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition">Message @if($order->unread_message_count)<span class="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">{{ $order->unread_message_count }}</span>@endif</a>
-                                            @endif
-                                            @if ($order->status === 'approved')
-                                                <form method="POST" action="{{ route('store.orders.preparing', $order) }}">@csrf<button type="submit" class="rounded bg-orange-50 px-2 py-1 text-sm font-semibold text-orange-700 hover:bg-orange-100">Start preparation</button></form>
-                                            @endif
-                                            @if ($order->status === 'preparing')
-                                                <form method="POST" action="{{ route('store.orders.ready', $order) }}">@csrf<button type="submit" class="rounded bg-green-50 px-2 py-1 text-sm font-semibold text-green-700 hover:bg-green-100">Mark ready</button></form>
-                                            @endif
-                                            @if ($order->status === 'ready_for_pickup' && $order->payment_status === 'paid')
-                                                <button onclick="openAssignModal({{ $order->id }})" class="text-yellow-600 hover:text-yellow-800 font-semibold text-sm px-2 py-1 bg-yellow-50 rounded hover:bg-yellow-100 transition">
-                                                    🎯 Assign
-                                                </button>
-                                            @endif
-                                            @if ($order->status === 'rider_assigned')
-                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded" onclick="return confirm('Cancel this delivery and start a refund?')">Cancel delivery</button>
-                                                </form>
-                                            @endif
-                                            @if ($order->store_approval_status === 'pending' && $order->status === 'pending')
-                                                <form method="POST" action="{{ route('order.cancel', $order->id) }}" style="display:inline;">
-                                                    @csrf
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 font-semibold text-sm px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition" onclick="return confirm('Reject this order and start a refund?')">
-                                                        ✕ Reject
-                                                    </button>
-                                                </form>
-                                            @endif
-                                            @if (in_array($order->status, ['rejected', 'cancelled']) && $order->refund_status === 'pending' && $order->payment_reference && !$order->refund_reference)
-                                                <form method="POST" action="{{ route('store.orders.refund.retry', $order) }}">@csrf<button type="submit" class="text-orange-700 font-semibold text-sm">Retry refund</button></form>
                                             @endif
                                         </div>
                                     </td>

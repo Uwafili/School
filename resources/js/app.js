@@ -4,6 +4,23 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
+document.addEventListener('livewire:init', () => {
+    Livewire.on('toast', ({ type, message }) => {
+        const toast = document.createElement('aside');
+        toast.className = `fixed inset-x-3 bottom-20 z-[90] mx-auto max-w-md rounded-xl border p-4 text-sm font-semibold shadow-xl sm:inset-x-auto sm:right-4 sm:bottom-4 ${
+            type === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-white text-green-800'
+        }`;
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        toast.textContent = message;
+        document.body.append(toast);
+        window.setTimeout(() => toast.remove(), 5000);
+    });
+
+    Livewire.on('order-tracking-updated', (detail) => {
+        window.dispatchEvent(new CustomEvent('foodstore:order-tracking-updated', { detail }));
+    });
+});
+
 const deleteStoreDialog = document.querySelector('[data-store-delete-dialog]');
 const deleteStoreForm = deleteStoreDialog?.querySelector('[data-store-delete-form]');
 
@@ -120,7 +137,7 @@ function handleNotification(notification) {
         || (isRiderAssignmentUpdate && document.querySelector('[data-rider-dashboard]'))
         || (isStoreDispatchUpdate && document.querySelector('[data-store-dashboard]'))
     ) {
-        window.setTimeout(() => window.location.reload(), 1200);
+        window.Livewire?.dispatch('order-status-updated', { orderId: Number(orderId) });
     }
 }
 

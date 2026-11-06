@@ -386,7 +386,7 @@
     x-data="{ darkMode: localStorage.getItem('foodstore-theme') === 'dark' }"
     x-init="$watch('darkMode', value => { localStorage.setItem('foodstore-theme', value ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', value); document.body.classList.toggle('theme-dark', value); }); document.documentElement.classList.toggle('dark', darkMode); document.body.classList.toggle('theme-dark', darkMode)"
     :class="darkMode ? 'theme-dark' : ''">
-    <nav x-data="{ open: false, dashboardMenu: false }" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
+    <nav x-data="{ open: false, dashboardMenu: false, cartCount: {{ count(session('cart', [])) }} }" @cart-updated.window="cartCount = $event.detail.count" :class="darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-800'"
         class="site-nav transition-colors duration-300">
         @php
             $isAdmin = Auth::check() && Auth::user()->usertype === 'admin';
@@ -436,10 +436,7 @@
                                     </svg>
                                     Cart
                                 </a>
-                                @if($cartCount > 0)
-                                    <span
-                                        class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $cartCount }}</span>
-                                @endif
+                                <span x-show="cartCount > 0" x-text="cartCount" x-cloak class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full"></span>
                             </div>
 
                             <a href="{{ route('about') }}" class="nav-link">About</a>
@@ -575,8 +572,7 @@
                         $cartCount = count($cartItems);
                     @endphp
                     <a href="{{ route('cart') }}" class="mobile-link justify-between">
-                        <span>Cart</span> @if($cartCount > 0)<span
-                        class="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{{ $cartCount }}</span>@endif
+                        <span>Cart</span><span x-show="cartCount > 0" x-text="cartCount" x-cloak class="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white"></span>
                     </a>
 
                     <a href="{{ route('about') }}" class="mobile-link">About</a>
